@@ -9,7 +9,8 @@ import './theme.css';
 
 export const App: React.FC = () => {
   const [theme, setTheme] = useState<ThemeMode>('dark');
-  const [selectedModel, setSelectedModel] = useState<string>('GPT-5.5');
+  const [selectedModel, setSelectedModel] = useState<string>('step-3.7-flash');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const [conversations, setConversations] = useState<Conversation[]>([
     {
@@ -28,7 +29,7 @@ export const App: React.FC = () => {
 
   const currentConversation = conversations.find((c) => c.id === activeId) || conversations[0];
 
-  const handleSendMessage = (text: string): void => {
+  const handleSendMessage = async (text: string): Promise<void> => {
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: 'user',
@@ -36,20 +37,80 @@ export const App: React.FC = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
+    let updatedHistory: ChatMessage[] = [];
+
     setConversations((previous) =>
       previous.map((conv) => {
         if (conv.id === activeId) {
-          const updatedMessages = [...conv.messages, userMsg];
+          updatedHistory = [...conv.messages, userMsg];
           const newTitle = conv.messages.length === 0 ? text.slice(0, 24) : conv.title;
           return {
             ...conv,
             title: newTitle,
-            messages: updatedMessages,
+            messages: updatedHistory,
           };
         }
         return conv;
       })
     );
+
+    setIsLoading(true);
+
+    try {
+      const apiPayload = updatedHistory.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      let assistantResponseText = '';
+
+      if (window.electronAPI?.sendMessageToLLM) {
+        const response = await window.electronAPI.sendMessageToLLM(apiPayload, selectedModel);
+        assistantResponseText = response.message;
+      } else {
+        assistantResponseText = 'Electron API bridge not available.';
+      }
+
+      const assistantMsg: ChatMessage = {
+        id: `msg-reply-${Date.now()}`,
+        role: 'assistant',
+        content: assistantResponseText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setConversations((previous) =>
+        previous.map((conv) => {
+          if (conv.id === activeId) {
+            return {
+              ...conv,
+              messages: [...conv.messages, assistantMsg],
+            };
+          }
+          return conv;
+        })
+      );
+    } catch (err: any) {
+      const errorMsg: ChatMessage = {
+        id: `msg-err-${Date.now()}`,
+        role: 'assistant',
+        content: `Error connecting to StepFun AI: ${err?.message || 'Unknown error'}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setConversations((previous) =>
+        previous.map((conv) => {
+          if (conv.id === activeId) {
+            return {
+              ...conv,
+              messages: [...conv.messages, errorMsg],
+            };
+          }
+          return conv;
+        })
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleNewChat = (): void => {
@@ -81,7 +142,7 @@ export const App: React.FC = () => {
           {currentConversation.messages.length === 0 ? (
             <WelcomeState onSelectPrompt={handleSendMessage} />
           ) : (
-            <MessageList messages={currentConversation.messages} />
+            <MessageList messages={currentConversation.messages} isLoading={isLoading} />
           )}
         </div>
 
@@ -89,6 +150,7 @@ export const App: React.FC = () => {
           onSendMessage={handleSendMessage}
           selectedModel={selectedModel}
           onSelectModel={setSelectedModel}
+          disabled={isLoading}
         />
       </div>
     </div>
