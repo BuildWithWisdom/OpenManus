@@ -147,6 +147,30 @@ const res = await openai.embeddings.create({
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
+                      h1({ children }) {
+                        return <h1 className="md-heading md-h1">{children}</h1>;
+                      },
+                      h2({ children }) {
+                        return <h2 className="md-heading md-h2">{children}</h2>;
+                      },
+                      h3({ children }) {
+                        return <h3 className="md-heading md-h3">{children}</h3>;
+                      },
+                      p({ children }) {
+                        return <p className="md-paragraph">{children}</p>;
+                      },
+                      ul({ children }) {
+                        return <ul className="md-list md-ul">{children}</ul>;
+                      },
+                      ol({ children }) {
+                        return <ol className="md-list md-ol">{children}</ol>;
+                      },
+                      li({ children }) {
+                        return <li className="md-list-item">{children}</li>;
+                      },
+                      strong({ children }) {
+                        return <strong className="md-strong">{children}</strong>;
+                      },
                       hr() {
                         return <hr className="content-divider" />;
                       },

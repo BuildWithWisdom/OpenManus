@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, ChevronDown, Brain, FileText, BookOpen, ExternalLink } from 'lucide-react';
 
 interface RightSidebarProps {
   onClose?: () => void;
+  latestMessageContent?: string;
 }
 
-const TOC_ITEMS = [
-  { id: 'embeddings', label: 'What are embeddings?', active: true },
-  { id: 'how-it-works', label: 'How it works', active: false },
-  { id: 'why-useful', label: 'Why they are useful', active: false },
-  { id: 'use-cases', label: 'Common use cases', active: false },
-  { id: 'models', label: 'Embedding models', active: false },
-  { id: 'summary', label: 'Summary', active: false },
+const DEFAULT_TOC_ITEMS = [
+  { id: 'embeddings', label: 'What are embeddings?' },
+  { id: 'how-it-works', label: 'How it works' },
+  { id: 'why-useful', label: 'Why they are useful' },
+  { id: 'use-cases', label: 'Common use cases' },
+  { id: 'models', label: 'Embedding models' },
+  { id: 'summary', label: 'Summary' },
 ];
 
 const RELATED_LINKS = [
@@ -38,9 +39,23 @@ const RELATED_LINKS = [
   },
 ];
 
-export const RightSidebar: React.FC<RightSidebarProps> = ({ onClose }) => {
-  const [activeTocId, setActiveTocId] = useState<string>('embeddings');
+export const RightSidebar: React.FC<RightSidebarProps> = ({ onClose, latestMessageContent }) => {
+  const [activeTocId, setActiveTocId] = useState<string>('0');
   const [isThoughtExpanded, setIsThoughtExpanded] = useState<boolean>(false);
+
+  const tocItems = useMemo(() => {
+    if (!latestMessageContent) return DEFAULT_TOC_ITEMS;
+
+    const headingRegex = /^(#{1,3})\s+(.+)$/gm;
+    const matches = Array.from(latestMessageContent.matchAll(headingRegex));
+
+    if (matches.length === 0) return DEFAULT_TOC_ITEMS;
+
+    return matches.map((match, index) => ({
+      id: `toc-${index}`,
+      label: match[2].trim(),
+    }));
+  }, [latestMessageContent]);
 
   return (
     <aside className="right-sidebar-container">
@@ -56,15 +71,18 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ onClose }) => {
         </div>
 
         <nav className="toc-list">
-          {TOC_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              className={`toc-item ${item.id === activeTocId ? 'active' : ''}`}
-              onClick={() => setActiveTocId(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+          {tocItems.map((item, idx) => {
+            const isActive = activeTocId === item.id || (activeTocId === '0' && idx === 0);
+            return (
+              <button
+                key={item.id}
+                className={`toc-item ${isActive ? 'active' : ''}`}
+                onClick={() => setActiveTocId(item.id)}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </nav>
       </div>
 

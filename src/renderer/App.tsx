@@ -127,6 +127,10 @@ export const App: React.FC = () => {
     setActiveId(newConvId);
   };
 
+  const latestAssistantMessage = [...currentConversation.messages]
+    .reverse()
+    .find((m) => m.role === 'assistant');
+
   return (
     <div className="app-layout" data-theme={theme}>
       <Sidebar
@@ -160,7 +164,10 @@ export const App: React.FC = () => {
           </div>
 
           {showRightSidebar && (
-            <RightSidebar onClose={() => setShowRightSidebar(false)} />
+            <RightSidebar
+              onClose={() => setShowRightSidebar(false)}
+              latestMessageContent={latestAssistantMessage?.content}
+            />
           )}
         </div>
       </div>

@@ -1333,3 +1333,57 @@ body {
   color: var(--text-muted);
   flex-shrink: 0;
 }
+
+/* Enhanced Markdown Response Typography */
+.md-heading {
+  color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.md-h1 {
+  font-size: 22px;
+  margin: 24px 0 12px 0;
+}
+
+.md-h2 {
+  font-size: 18px;
+  margin: 22px 0 10px 0;
+}
+
+.md-h3 {
+  font-size: 16px;
+  margin: 18px 0 8px 0;
+}
+
+.md-paragraph {
+  font-size: 14px;
+  line-height: 1.65;
+  color: #cbd5e1;
+  margin-bottom: 14px;
+}
+
+.md-list {
+  padding-left: 20px;
+  margin-bottom: 14px;
+}
+
+.md-ul {
+  list-style-type: disc;
+}
+
+.md-ol {
+  list-style-type: decimal;
+}
+
+.md-list-item {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #cbd5e1;
+  margin-bottom: 6px;
+}
+
+.md-strong {
+  color: #ffffff;
+  font-weight: 600;
+}
