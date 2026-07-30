@@ -8,7 +8,7 @@ interface ChatInputProps {
   disabled?: boolean;
 }
 
-const AVAILABLE_MODELS = ['GPT-5.5', 'GPT-4o', 'Claude 3.5 Sonnet', 'Gemini 2.5 Flash'];
+const AVAILABLE_MODELS = ['step-3.7-flash', 'step-3.5-flash', 'step-1.5v', 'GPT-4o', 'Claude 3.5 Sonnet'];
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,

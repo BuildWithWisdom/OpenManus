@@ -13,3 +13,20 @@ export interface Conversation {
 }
 
 export type ThemeMode = 'dark' | 'light';
+
+export interface LLMResponse {
+  error: boolean;
+  message: string;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      platform: string;
+      sendMessageToLLM: (
+        messages: Array<{ role: string; content: string }>,
+        modelName?: string
+      ) => Promise<LLMResponse>;
+    };
+  }
+}
