@@ -9,27 +9,25 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ theme, onToggleTheme }) => {
   return (
-    <header className="header-container">
-      <div className="header-left" />
+    <header className="global-header-container">
+      <div className="global-header-left" />
 
-      <div className="header-center" />
-
-      <div className="header-right">
+      <div className="global-header-right">
         <button
-          className="header-icon-btn"
+          className="global-header-btn"
           onClick={onToggleTheme}
           title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           aria-label="Toggle Theme"
         >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
         </button>
 
-        <button className="header-icon-btn" title="Documentation" aria-label="Documentation">
-          <BookOpen size={18} />
+        <button className="global-header-btn" title="Documentation" aria-label="Documentation">
+          <BookOpen size={17} />
         </button>
 
-        <button className="header-icon-btn" title="Settings" aria-label="Settings">
-          <Settings size={18} />
+        <button className="global-header-btn" title="Settings" aria-label="Settings">
+          <Settings size={17} />
         </button>
       </div>
     </header>

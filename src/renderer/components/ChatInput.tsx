@@ -1,5 +1,5 @@
 import React, { useState, useRef, KeyboardEvent } from 'react';
-import { Paperclip, Box, Globe, ChevronDown, ArrowUp } from 'lucide-react';
+import { Paperclip, CodeXml, Globe, ChevronDown, ArrowUp } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (text: string) => void;
@@ -45,48 +45,48 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <div className="chat-input-wrapper">
-      <div className="chat-input-box">
+    <div className="chat-card-input-wrapper">
+      <div className="chat-card-input-box">
         <textarea
           ref={textareaRef}
           value={text}
           onChange={handleTextChange}
           onKeyDown={handleKeyDown}
-          placeholder="Ask anything..."
+          placeholder="Ask OpenManus anything..."
           rows={1}
           disabled={disabled}
-          className="chat-textarea"
+          className="chat-card-textarea"
         />
 
-        <div className="chat-input-toolbar">
-          <div className="toolbar-left">
-            <button className="tool-btn" title="Attach file" aria-label="Attach file">
-              <Paperclip size={18} />
+        <div className="chat-card-input-toolbar">
+          <div className="card-toolbar-left">
+            <button className="card-tool-box" title="Attach file" aria-label="Attach file">
+              <Paperclip size={16} />
             </button>
-            <button className="tool-btn" title="Plugins & Tools" aria-label="Plugins & Tools">
-              <Box size={18} />
+            <button className="card-tool-box" title="Code & Tools" aria-label="Code & Tools">
+              <CodeXml size={16} />
             </button>
-            <button className="tool-btn" title="Web Search" aria-label="Web Search">
-              <Globe size={18} />
+            <button className="card-tool-box" title="Web Search" aria-label="Web Search">
+              <Globe size={16} />
             </button>
           </div>
 
-          <div className="toolbar-right">
-            <div className="model-dropdown-container">
+          <div className="card-toolbar-right">
+            <div className="card-model-dropdown-container">
               <button
-                className="model-select-btn"
+                className="card-model-select-btn"
                 onClick={() => setShowModelDropdown((previousState) => !previousState)}
               >
                 <span>{selectedModel}</span>
-                <ChevronDown size={14} />
+                <ChevronDown size={13} />
               </button>
 
               {showModelDropdown && (
-                <div className="model-dropdown-menu">
+                <div className="card-model-dropdown-menu">
                   {AVAILABLE_MODELS.map((model) => (
                     <div
                       key={model}
-                      className={`model-option ${model === selectedModel ? 'active' : ''}`}
+                      className={`card-model-option ${model === selectedModel ? 'active' : ''}`}
                       onClick={() => {
                         onSelectModel(model);
                         setShowModelDropdown(false);
@@ -100,19 +100,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </div>
 
             <button
-              className={`send-btn ${text.trim() ? 'active' : ''}`}
+              className={`card-send-btn ${text.trim() ? 'active' : ''}`}
               onClick={handleSubmit}
               disabled={!text.trim() || disabled}
               title="Send message"
             >
-              <ArrowUp size={18} />
+              <ArrowUp size={17} />
             </button>
           </div>
         </div>
-      </div>
-
-      <div className="disclaimer-text">
-        OpenManus may make mistakes. Check important info.
       </div>
     </div>
   );

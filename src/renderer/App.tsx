@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
-import { WelcomeState } from './components/WelcomeState';
+import { ChatHeaderBar } from './components/ChatHeaderBar';
+import { RightSidebar } from './components/RightSidebar';
 import { MessageList } from './components/MessageList';
 import { ChatInput } from './components/ChatInput';
 import { ChatMessage, Conversation, ThemeMode } from './types';
@@ -11,11 +12,12 @@ export const App: React.FC = () => {
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [selectedModel, setSelectedModel] = useState<string>('step-3.7-flash');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showRightSidebar, setShowRightSidebar] = useState<boolean>(true);
 
   const [conversations, setConversations] = useState<Conversation[]>([
     {
       id: 'conv-1',
-      title: 'New Conversation',
+      title: 'Explain embeddings',
       timestamp: 'Just now',
       messages: [],
     },
@@ -125,6 +127,10 @@ export const App: React.FC = () => {
     setActiveId(newConvId);
   };
 
+  const latestAssistantMessage = [...currentConversation.messages]
+    .reverse()
+    .find((m) => m.role === 'assistant');
+
   return (
     <div className="app-layout" data-theme={theme}>
       <Sidebar
@@ -138,20 +144,32 @@ export const App: React.FC = () => {
       <div className="main-content">
         <Header theme={theme} onToggleTheme={toggleTheme} />
 
-        <div className="content-body">
-          {currentConversation.messages.length === 0 ? (
-            <WelcomeState onSelectPrompt={handleSendMessage} />
-          ) : (
-            <MessageList messages={currentConversation.messages} isLoading={isLoading} />
+        <div className="main-workspace-area">
+          <div className="chat-workspace-card">
+            <ChatHeaderBar
+              title={currentConversation.title}
+              onToggleContents={() => setShowRightSidebar(!showRightSidebar)}
+            />
+
+            <div className="chat-card-body">
+              <MessageList messages={currentConversation.messages} isLoading={isLoading} />
+            </div>
+
+            <ChatInput
+              onSendMessage={handleSendMessage}
+              selectedModel={selectedModel}
+              onSelectModel={setSelectedModel}
+              disabled={isLoading}
+            />
+          </div>
+
+          {showRightSidebar && (
+            <RightSidebar
+              onClose={() => setShowRightSidebar(false)}
+              latestMessageContent={latestAssistantMessage?.content}
+            />
           )}
         </div>
-
-        <ChatInput
-          onSendMessage={handleSendMessage}
-          selectedModel={selectedModel}
-          onSelectModel={setSelectedModel}
-          disabled={isLoading}
-        />
       </div>
     </div>
   );
