@@ -1,40 +1,95 @@
 import React, { useState } from 'react';
+import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
+import { WelcomeState } from './components/WelcomeState';
+import { MessageList } from './components/MessageList';
+import { ChatInput } from './components/ChatInput';
+import { ChatMessage, Conversation, ThemeMode } from './types';
+import './theme.css';
 
 export const App: React.FC = () => {
-  const [clickCount, setClickCount] = useState<number>(0);
+  const [theme, setTheme] = useState<ThemeMode>('dark');
+  const [selectedModel, setSelectedModel] = useState<string>('GPT-5.5');
 
-  const incrementCounter = (): void => {
-    setClickCount((previousCount) => previousCount + 1);
+  const [conversations, setConversations] = useState<Conversation[]>([
+    {
+      id: 'conv-1',
+      title: 'New Conversation',
+      timestamp: 'Just now',
+      messages: [],
+    },
+  ]);
+
+  const [activeId, setActiveId] = useState<string>('conv-1');
+
+  const toggleTheme = (): void => {
+    setTheme((previousTheme) => (previousTheme === 'dark' ? 'light' : 'dark'));
   };
 
-  const resetCounter = (): void => {
-    setClickCount(0);
+  const currentConversation = conversations.find((c) => c.id === activeId) || conversations[0];
+
+  const handleSendMessage = (text: string): void => {
+    const userMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      role: 'user',
+      content: text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setConversations((previous) =>
+      previous.map((conv) => {
+        if (conv.id === activeId) {
+          const updatedMessages = [...conv.messages, userMsg];
+          const newTitle = conv.messages.length === 0 ? text.slice(0, 24) : conv.title;
+          return {
+            ...conv,
+            title: newTitle,
+            messages: updatedMessages,
+          };
+        }
+        return conv;
+      })
+    );
+  };
+
+  const handleNewChat = (): void => {
+    const newConvId = `conv-${Date.now()}`;
+    const newConv: Conversation = {
+      id: newConvId,
+      title: 'New Conversation',
+      timestamp: 'Just now',
+      messages: [],
+    };
+    setConversations((previous) => [newConv, ...previous]);
+    setActiveId(newConvId);
   };
 
   return (
-    <div className="container">
-      <div className="badge">
-        <span>⚡</span> React 19 + Electron Forge + Vite
-      </div>
-      <h1 className="hero-title">Electron + React App</h1>
-      <p className="hero-subtitle">
-        Your application is now configured with the scalable architecture pattern!
-      </p>
+    <div className="app-layout" data-theme={theme}>
+      <Sidebar
+        conversations={conversations}
+        activeId={activeId}
+        onSelectConversation={setActiveId}
+        onNewChat={handleNewChat}
+        selectedModel={selectedModel}
+      />
 
-      <div className="interactive-card">
-        <div className="counter-value">{clickCount}</div>
-        <div className="button-group">
-          <button className="btn btn-primary" onClick={incrementCounter}>
-            Increment Counter
-          </button>
-          <button className="btn btn-secondary" onClick={resetCounter}>
-            Reset
-          </button>
+      <div className="main-content">
+        <Header theme={theme} onToggleTheme={toggleTheme} />
+
+        <div className="content-body">
+          {currentConversation.messages.length === 0 ? (
+            <WelcomeState onSelectPrompt={handleSendMessage} />
+          ) : (
+            <MessageList messages={currentConversation.messages} />
+          )}
         </div>
-      </div>
 
-      <div className="footer-info">
-        Main: <code>src/main/main.ts</code> | Preload: <code>src/preload/preload.ts</code> | UI: <code>src/renderer/App.tsx</code>
+        <ChatInput
+          onSendMessage={handleSendMessage}
+          selectedModel={selectedModel}
+          onSelectModel={setSelectedModel}
+        />
       </div>
     </div>
   );
