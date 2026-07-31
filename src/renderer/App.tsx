@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ChatHeaderBar, TurnItem } from './components/ChatHeaderBar';
@@ -12,13 +12,13 @@ export const App: React.FC = () => {
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [selectedModel, setSelectedModel] = useState<string>('step-3.7-flash');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [showRightSidebar, setShowRightSidebar] = useState<boolean>(true);
+  const [showRightSidebar, setShowRightSidebar] = useState<boolean>(false);
   const [activeTurnIndex, setActiveTurnIndex] = useState<number>(0);
 
   const [conversations, setConversations] = useState<Conversation[]>([
     {
       id: 'conv-1',
-      title: 'Explain embeddings',
+      title: 'New Conversation',
       timestamp: 'Just now',
       messages: [],
     },
@@ -26,16 +26,16 @@ export const App: React.FC = () => {
 
   const [activeId, setActiveId] = useState<string>('conv-1');
 
-  const toggleTheme = (): void => {
+  const toggleTheme = useCallback((): void => {
     setTheme((previousTheme) => (previousTheme === 'dark' ? 'light' : 'dark'));
-  };
+  }, []);
 
   const currentConversation = conversations.find((c) => c.id === activeId) || conversations[0];
 
   const turns = useMemo<TurnItem[]>(() => {
     const userMsgs = currentConversation.messages.filter((m) => m.role === 'user');
     if (userMsgs.length === 0) {
-      return [{ id: 'demo-0', index: 0, title: 'Explain embeddings.' }];
+      return [{ id: 'demo-0', index: 0, title: 'New Conversation' }];
     }
     return userMsgs.map((m, idx) => ({
       id: m.id,
@@ -44,15 +44,19 @@ export const App: React.FC = () => {
     }));
   }, [currentConversation.messages]);
 
-  const handleSelectTurn = (turnIndex: number): void => {
+  const handleSelectTurn = useCallback((turnIndex: number): void => {
     setActiveTurnIndex(turnIndex);
     const elem = document.getElementById(`turn-${turnIndex}`);
     if (elem) {
       elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  };
+  }, []);
 
-  const handleSendMessage = async (text: string): Promise<void> => {
+  const handleToggleContents = useCallback((): void => {
+    setShowRightSidebar((prev) => !prev);
+  }, []);
+
+  const handleSendMessage = useCallback(async (text: string): Promise<void> => {
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: 'user',
@@ -137,9 +141,9 @@ export const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeId, selectedModel]);
 
-  const handleNewChat = (): void => {
+  const handleNewChat = useCallback((): void => {
     const newConvId = `conv-${Date.now()}`;
     const newConv: Conversation = {
       id: newConvId,
@@ -150,7 +154,7 @@ export const App: React.FC = () => {
     setConversations((previous) => [newConv, ...previous]);
     setActiveId(newConvId);
     setActiveTurnIndex(0);
-  };
+  }, []);
 
   // Find assistant message for active turn
   const activeTurnAssistantMessage = useMemo(() => {
@@ -167,22 +171,24 @@ export const App: React.FC = () => {
     return undefined;
   }, [currentConversation.messages, activeTurnIndex]);
 
-  const handleSelectHeading = (headingId: string): void => {
+  const handleSelectHeading = useCallback((headingId: string): void => {
     const elem = document.getElementById(headingId);
     if (elem) {
       elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  };
+  }, []);
+
+  const handleSelectConversation = useCallback((id: string) => {
+    setActiveId(id);
+    setActiveTurnIndex(0);
+  }, []);
 
   return (
     <div className="app-layout" data-theme={theme}>
       <Sidebar
         conversations={conversations}
         activeId={activeId}
-        onSelectConversation={(id) => {
-          setActiveId(id);
-          setActiveTurnIndex(0);
-        }}
+        onSelectConversation={handleSelectConversation}
         onNewChat={handleNewChat}
         selectedModel={selectedModel}
       />
@@ -197,11 +203,16 @@ export const App: React.FC = () => {
               turns={turns}
               activeTurnIndex={activeTurnIndex}
               onSelectTurn={handleSelectTurn}
-              onToggleContents={() => setShowRightSidebar(!showRightSidebar)}
+              onToggleContents={handleToggleContents}
+              hasMessages={currentConversation.messages.length > 0}
             />
 
             <div className="chat-card-body">
-              <MessageList messages={currentConversation.messages} isLoading={isLoading} />
+              <MessageList
+                messages={currentConversation.messages}
+                isLoading={isLoading}
+                onSelectPrompt={handleSendMessage}
+              />
             </div>
 
             <ChatInput
@@ -212,13 +223,12 @@ export const App: React.FC = () => {
             />
           </div>
 
-          {showRightSidebar && (
-            <RightSidebar
-              onClose={() => setShowRightSidebar(false)}
-              latestMessageContent={activeTurnAssistantMessage?.content}
-              onSelectHeading={handleSelectHeading}
-            />
-          )}
+          <RightSidebar
+            isVisible={showRightSidebar}
+            onClose={handleToggleContents}
+            latestMessageContent={activeTurnAssistantMessage?.content}
+            onSelectHeading={handleSelectHeading}
+          />
         </div>
       </div>
     </div>

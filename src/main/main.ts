@@ -3,6 +3,7 @@ import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
+import { buildSystemPrompt } from './prompts/promptBuilder';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -46,13 +47,7 @@ ipcMain.handle('chat:sendMessage', async (_event, messages: Array<{ role: string
 
     const systemMessage = {
       role: 'system' as const,
-      content: `You are OpenManus, a state-of-the-art AI assistant. 
-Always format your responses cleanly using GitHub-flavored Markdown. 
-Guidelines:
-1. Break down explanations into distinct sections using Markdown headings (e.g. ### Section Title).
-2. Format key points using ordered or unordered lists with bold item labels (e.g., 1. **Step Name** → Description).
-3. Place all code, configuration snippets, or technical commands in fenced code blocks with explicit language tags (e.g., \`\`\`typescript, \`\`\`python).
-4. Use generous line breaks between paragraphs for maximum readability.`,
+      content: buildSystemPrompt(),
     };
 
     const formattedMessages = [
