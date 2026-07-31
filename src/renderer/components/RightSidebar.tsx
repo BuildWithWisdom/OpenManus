@@ -1,44 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { X, ChevronDown, Brain, FileText, BookOpen, ExternalLink } from 'lucide-react';
+import { X, ChevronDown, Brain, FileText } from 'lucide-react';
 
 interface RightSidebarProps {
+  isVisible?: boolean;
   onClose?: () => void;
   latestMessageContent?: string;
   onSelectHeading?: (headingId: string) => void;
 }
-
-const DEFAULT_TOC_ITEMS = [
-  { id: 'heading-what-are-embeddings', label: 'What are embeddings?' },
-  { id: 'heading-how-it-works', label: 'How it works' },
-  { id: 'heading-why-they-are-useful', label: 'Why they are useful' },
-  { id: 'heading-common-use-cases', label: 'Common use cases' },
-  { id: 'heading-embedding-models', label: 'Embedding models' },
-  { id: 'heading-summary', label: 'Summary' },
-];
-
-const RELATED_LINKS = [
-  {
-    id: 'rel-1',
-    icon: FileText,
-    title: 'Vector Databases 101',
-    subtitle: 'docs.argus.dev',
-    isExternal: false,
-  },
-  {
-    id: 'rel-2',
-    icon: BookOpen,
-    title: 'OpenAI Embeddings Cookbook',
-    subtitle: 'cookbook.openai.com',
-    isExternal: true,
-  },
-  {
-    id: 'rel-3',
-    icon: FileText,
-    title: 'Understanding Embeddings',
-    subtitle: 'towardsdatascience.com',
-    isExternal: true,
-  },
-];
 
 const slugify = (text: string): string => {
   return text
@@ -48,6 +16,7 @@ const slugify = (text: string): string => {
 };
 
 export const RightSidebar: React.FC<RightSidebarProps> = ({
+  isVisible = true,
   onClose,
   latestMessageContent,
   onSelectHeading,
@@ -56,28 +25,36 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   const [isThoughtExpanded, setIsThoughtExpanded] = useState<boolean>(false);
 
   const tocItems = useMemo(() => {
-    if (!latestMessageContent) return DEFAULT_TOC_ITEMS;
+    if (!latestMessageContent) return [];
 
     // Strip code blocks so Python/Bash comments (# comment) are ignored
     const contentWithoutCode = latestMessageContent.replace(/```[\s\S]*?```/g, '');
 
-    const headingRegex = /^(#{1,3})\s+(.+)$/gm;
+    // Match exclusively top-level H2 (##) section headings for Table of Contents
+    const headingRegex = /^##\s+(.+)$/gm;
     const matches = Array.from(contentWithoutCode.matchAll(headingRegex));
 
-    if (matches.length === 0) return DEFAULT_TOC_ITEMS;
+    if (matches.length === 0) return [];
 
-    return matches.map((match) => {
-      const text = match[2].trim();
+    const seenIds = new Set<string>();
+    const uniqueItems: { id: string; label: string }[] = [];
+
+    for (const match of matches) {
+      const text = (match[1] || match[0] || '').trim();
+      if (!text) continue;
       const id = `heading-${slugify(text)}`;
-      return {
-        id,
-        label: text,
-      };
-    });
+
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        uniqueItems.push({ id, label: text });
+      }
+    }
+
+    return uniqueItems;
   }, [latestMessageContent]);
 
   return (
-    <aside className="right-sidebar-container">
+    <aside className={`right-sidebar-container ${!isVisible ? 'hidden' : ''}`}>
       {/* Section 1: Contents */}
       <div className="right-sidebar-section">
         <div className="section-header-row">
@@ -90,21 +67,25 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </div>
 
         <nav className="toc-list">
-          {tocItems.map((item, idx) => {
-            const isActive = activeTocId === item.id || (activeTocId === '' && idx === 0);
-            return (
-              <button
-                key={item.id}
-                className={`toc-item ${isActive ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveTocId(item.id);
-                  onSelectHeading?.(item.id);
-                }}
-              >
-                {item.label}
-              </button>
-            );
-          })}
+          {tocItems.length > 0 ? (
+            tocItems.map((item, idx) => {
+              const isActive = activeTocId === item.id || (activeTocId === '' && idx === 0);
+              return (
+                <button
+                  key={item.id}
+                  className={`toc-item ${isActive ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveTocId(item.id);
+                    onSelectHeading?.(item.id);
+                  }}
+                >
+                  {item.label}
+                </button>
+              );
+            })
+          ) : (
+            <span className="empty-section-text">No headings in current message.</span>
+          )}
         </nav>
       </div>
 
@@ -128,7 +109,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </div>
           <div className="thought-info">
             <span className="thought-title">Thought process</span>
-            <span className="thought-subtitle">Click to expand</span>
+            <span className="thought-subtitle">
+              {isThoughtExpanded ? 'Click to collapse' : 'Click to expand'}
+            </span>
           </div>
         </div>
       </div>
@@ -140,23 +123,17 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </div>
 
         <div className="related-links-list">
-          {RELATED_LINKS.map((link) => {
-            const IconComponent = link.icon;
-            return (
-              <div key={link.id} className="related-card">
-                <div className="related-icon-box">
-                  <IconComponent size={16} />
-                </div>
-                <div className="related-info">
-                  <span className="related-title">{link.title}</span>
-                  <div className="related-subtitle-row">
-                    <span className="related-subtitle">{link.subtitle}</span>
-                    {link.isExternal && <ExternalLink size={12} className="external-link-icon" />}
-                  </div>
-                </div>
+          <div className="related-card">
+            <div className="related-icon-box">
+              <FileText size={16} />
+            </div>
+            <div className="related-info">
+              <span className="related-title">OpenManus Documentation</span>
+              <div className="related-subtitle-row">
+                <span className="related-subtitle">Project Workspace</span>
               </div>
-            );
-          })}
+            </div>
+          </div>
         </div>
       </div>
     </aside>

@@ -21,22 +21,26 @@ interface ChatHeaderBarProps {
   activeTurnIndex?: number;
   onSelectTurn?: (turnIndex: number) => void;
   onToggleContents?: () => void;
+  hasMessages?: boolean;
 }
 
 export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
-  title = 'Explain embeddings',
+  title = 'New Conversation',
   turns = [],
   activeTurnIndex = 0,
   onSelectTurn,
   onToggleContents,
+  hasMessages = false,
 }) => {
   const [showTurnsDropdown, setShowTurnsDropdown] = useState<boolean>(false);
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
 
+  const isDisabled = !hasMessages;
+
   const effectiveTurns: TurnItem[] =
     turns.length > 0
       ? turns
-      : [{ id: 'demo-0', index: 0, title: title || 'Explain embeddings.' }];
+      : [{ id: 'demo-0', index: 0, title: title || 'New Conversation' }];
 
   const currentTurn = effectiveTurns[activeTurnIndex] || effectiveTurns[0];
 
@@ -46,16 +50,18 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
         <button
           type="button"
           className="chat-title-wrapper-btn"
+          disabled={isDisabled}
           onClick={() => {
+            if (isDisabled) return;
             setShowTurnsDropdown((prev) => !prev);
             setShowMoreMenu(false);
           }}
         >
-          <span className="chat-card-title">{currentTurn.title}</span>
-          <ChevronDown size={14} className="chat-title-chevron" />
+          <span className="chat-card-title">{hasMessages ? currentTurn.title : title}</span>
+          {!isDisabled && <ChevronDown size={14} className="chat-title-chevron" />}
         </button>
 
-        {showTurnsDropdown && (
+        {showTurnsDropdown && !isDisabled && (
           <div className="turns-dropdown-menu">
             {effectiveTurns.map((turn) => {
               const isActive = turn.index === activeTurnIndex;
@@ -81,6 +87,7 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
         <button
           className="chat-action-btn"
           title="Toggle Contents"
+          disabled={isDisabled}
           onClick={onToggleContents}
           aria-label="Toggle Contents"
         >
@@ -91,8 +98,10 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
           <button
             className="chat-action-btn"
             title="More Options"
+            disabled={isDisabled}
             aria-label="More Options"
             onClick={() => {
+              if (isDisabled) return;
               setShowMoreMenu((prev) => !prev);
               setShowTurnsDropdown(false);
             }}
@@ -100,7 +109,7 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
             <MoreHorizontal size={17} />
           </button>
 
-          {showMoreMenu && (
+          {showMoreMenu && !isDisabled && (
             <div className="chat-more-menu">
               <button type="button" className="chat-more-item">
                 <Copy size={15} />
