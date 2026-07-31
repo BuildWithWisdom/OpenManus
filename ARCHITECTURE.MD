@@ -29,7 +29,7 @@ Living architecture document for the AI Engineering course project.
 
 ### Module 2 — Prompt Engineering
 
-- Implemented Approach 1 (Modular Prompt System) in dedicated `src/main/prompts/` engine.
+- Implemented Modular Prompt System in dedicated `src/main/prompts/` engine.
 - Designed OpenManus persona as an autonomous AI Agent with structured analytical thinking, Markdown formatting, and explicit prompt injection safety boundaries.
 - Built XML system prompt structure using `<agent_identity>`, `<core_principles>`, `<formatting_rules>`, and `<safety_boundaries>` blocks.
 - Integrated `buildSystemPrompt()` into `src/main/main.ts` IPC handler for dynamic system message assembly.
