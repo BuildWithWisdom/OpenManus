@@ -12,6 +12,13 @@ interface MessageListProps {
   isLoading?: boolean;
 }
 
+const slugify = (text: string): string => {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-');
+};
+
 const CodeBlock = ({ language, value }: { language: string; value: string }) => {
   const [copied, setCopied] = useState(false);
 
@@ -21,10 +28,14 @@ const CodeBlock = ({ language, value }: { language: string; value: string }) => 
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const displayLang = language
+    ? language.charAt(0).toUpperCase() + language.slice(1)
+    : 'TypeScript';
+
   return (
     <div className="code-block-wrapper">
       <div className="code-block-header">
-        <span className="code-lang">{language || 'TypeScript'}</span>
+        <div className="code-lang-tab">{displayLang}</div>
         <button className="code-copy-btn" onClick={handleCopy}>
           {copied ? (
             <>
@@ -81,7 +92,6 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, isLoading })
     setTimeout(() => setCopiedMsgId(null), 2000);
   };
 
-  // If messages are empty, we render the dummy conversation from the reference design
   const displayMessages =
     messages.length > 0
       ? messages
@@ -121,106 +131,121 @@ const res = await openai.embeddings.create({
           },
         ];
 
+  let userTurnCounter = 0;
+
   return (
     <div className="messages-container">
-      {displayMessages.map((message) => (
-        <div key={message.id} className={`message-row ${message.role}`}>
-          {message.role === 'user' ? (
-            <div className="user-message-wrapper">
-              <span className="user-timestamp">{message.timestamp || '10:42 AM'}</span>
-              <div className="message-bubble user">
-                <div className="message-content">{message.content}</div>
-              </div>
-            </div>
-          ) : (
-            <div className="assistant-message-wrapper">
-              <div className="assistant-header-row">
-                <div className="avatar-container">
-                  <OpenManusLogo size={20} />
-                </div>
-                <span className="assistant-name">Argus</span>
-                <span className="assistant-timestamp">{message.timestamp || '10:42 AM'}</span>
-              </div>
+      {displayMessages.map((message) => {
+        let turnId: string | undefined = undefined;
+        if (message.role === 'user') {
+          turnId = `turn-${userTurnCounter++}`;
+        }
 
-              <div className="message-bubble assistant">
-                <div className="message-content">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      h1({ children }) {
-                        return <h1 className="md-heading md-h1">{children}</h1>;
-                      },
-                      h2({ children }) {
-                        return <h2 className="md-heading md-h2">{children}</h2>;
-                      },
-                      h3({ children }) {
-                        return <h3 className="md-heading md-h3">{children}</h3>;
-                      },
-                      p({ children }) {
-                        return <p className="md-paragraph">{children}</p>;
-                      },
-                      ul({ children }) {
-                        return <ul className="md-list md-ul">{children}</ul>;
-                      },
-                      ol({ children }) {
-                        return <ol className="md-list md-ol">{children}</ol>;
-                      },
-                      li({ children }) {
-                        return <li className="md-list-item">{children}</li>;
-                      },
-                      strong({ children }) {
-                        return <strong className="md-strong">{children}</strong>;
-                      },
-                      hr() {
-                        return <hr className="content-divider" />;
-                      },
-                      code({ node, inline, className, children, ...props }: any) {
-                        const match = /language-(\w+)/.exec(className || '');
-                        const codeString = String(children).replace(/\n$/, '');
-
-                        if (!inline && match) {
-                          return <CodeBlock language={match[1]} value={codeString} />;
-                        }
-
-                        if (!inline && codeString.includes('\n')) {
-                          return <CodeBlock language="typescript" value={codeString} />;
-                        }
-
-                        return (
-                          <code className="inline-code" {...props}>
-                            {children}
-                          </code>
-                        );
-                      },
-                    }}
-                  >
-                    {message.content}
-                  </ReactMarkdown>
-                </div>
-
-                <div className="message-action-bar">
-                  <button className="action-icon-btn" title="Like response">
-                    <ThumbsUp size={15} />
-                  </button>
-                  <button className="action-icon-btn" title="Dislike response">
-                    <ThumbsDown size={15} />
-                  </button>
-                  <button
-                    className="action-icon-btn"
-                    title="Copy message"
-                    onClick={() => handleCopyMessage(message.id, message.content)}
-                  >
-                    {copiedMsgId === message.id ? <Check size={15} /> : <Copy size={15} />}
-                  </button>
-                  <button className="action-icon-btn" title="Regenerate response">
-                    <RotateCw size={15} />
-                  </button>
+        return (
+          <div key={message.id} id={turnId} className={`message-row ${message.role}`}>
+            {message.role === 'user' ? (
+              <div className="user-message-wrapper">
+                <span className="user-timestamp">{message.timestamp || '10:42 AM'}</span>
+                <div className="message-bubble user">
+                  <div className="message-content">{message.content}</div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-      ))}
+            ) : (
+              <div className="assistant-message-wrapper">
+                <div className="assistant-header-row">
+                  <div className="avatar-container">
+                    <OpenManusLogo size={20} />
+                  </div>
+                  <span className="assistant-name">Argus</span>
+                  <span className="assistant-timestamp">{message.timestamp || '10:42 AM'}</span>
+                </div>
+
+                <div className="message-bubble assistant">
+                  <div className="message-content">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1({ children }) {
+                          const textStr = Array.isArray(children) ? children.join('') : String(children);
+                          const id = `heading-${slugify(textStr)}`;
+                          return <h1 id={id} className="md-heading md-h1">{children}</h1>;
+                        },
+                        h2({ children }) {
+                          const textStr = Array.isArray(children) ? children.join('') : String(children);
+                          const id = `heading-${slugify(textStr)}`;
+                          return <h2 id={id} className="md-heading md-h2">{children}</h2>;
+                        },
+                        h3({ children }) {
+                          const textStr = Array.isArray(children) ? children.join('') : String(children);
+                          const id = `heading-${slugify(textStr)}`;
+                          return <h3 id={id} className="md-heading md-h3">{children}</h3>;
+                        },
+                        p({ children }) {
+                          return <p className="md-paragraph">{children}</p>;
+                        },
+                        ul({ children }) {
+                          return <ul className="md-list md-ul">{children}</ul>;
+                        },
+                        ol({ children }) {
+                          return <ol className="md-list md-ol">{children}</ol>;
+                        },
+                        li({ children }) {
+                          return <li className="md-list-item">{children}</li>;
+                        },
+                        strong({ children }) {
+                          return <strong className="md-strong">{children}</strong>;
+                        },
+                        hr() {
+                          return <hr className="content-divider" />;
+                        },
+                        code({ node, inline, className, children, ...props }: any) {
+                          const match = /language-(\w+)/.exec(className || '');
+                          const codeString = String(children).replace(/\n$/, '');
+
+                          if (!inline && match) {
+                            return <CodeBlock language={match[1]} value={codeString} />;
+                          }
+
+                          if (!inline && codeString.includes('\n')) {
+                            return <CodeBlock language="typescript" value={codeString} />;
+                          }
+
+                          return (
+                            <code className="inline-code" {...props}>
+                              {children}
+                            </code>
+                          );
+                        },
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
+
+                  <div className="message-action-bar">
+                    <button className="action-icon-btn" title="Like response">
+                      <ThumbsUp size={15} />
+                    </button>
+                    <button className="action-icon-btn" title="Dislike response">
+                      <ThumbsDown size={15} />
+                    </button>
+                    <button
+                      className="action-icon-btn"
+                      title="Copy message"
+                      onClick={() => handleCopyMessage(message.id, message.content)}
+                    >
+                      {copiedMsgId === message.id ? <Check size={15} /> : <Copy size={15} />}
+                    </button>
+                    <button className="action-icon-btn" title="Regenerate response">
+                      <RotateCw size={15} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {isLoading && (
         <div className="message-row assistant">

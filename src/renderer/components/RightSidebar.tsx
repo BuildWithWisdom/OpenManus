@@ -4,15 +4,16 @@ import { X, ChevronDown, Brain, FileText, BookOpen, ExternalLink } from 'lucide-
 interface RightSidebarProps {
   onClose?: () => void;
   latestMessageContent?: string;
+  onSelectHeading?: (headingId: string) => void;
 }
 
 const DEFAULT_TOC_ITEMS = [
-  { id: 'embeddings', label: 'What are embeddings?' },
-  { id: 'how-it-works', label: 'How it works' },
-  { id: 'why-useful', label: 'Why they are useful' },
-  { id: 'use-cases', label: 'Common use cases' },
-  { id: 'models', label: 'Embedding models' },
-  { id: 'summary', label: 'Summary' },
+  { id: 'heading-what-are-embeddings', label: 'What are embeddings?' },
+  { id: 'heading-how-it-works', label: 'How it works' },
+  { id: 'heading-why-they-are-useful', label: 'Why they are useful' },
+  { id: 'heading-common-use-cases', label: 'Common use cases' },
+  { id: 'heading-embedding-models', label: 'Embedding models' },
+  { id: 'heading-summary', label: 'Summary' },
 ];
 
 const RELATED_LINKS = [
@@ -39,22 +40,40 @@ const RELATED_LINKS = [
   },
 ];
 
-export const RightSidebar: React.FC<RightSidebarProps> = ({ onClose, latestMessageContent }) => {
-  const [activeTocId, setActiveTocId] = useState<string>('0');
+const slugify = (text: string): string => {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-');
+};
+
+export const RightSidebar: React.FC<RightSidebarProps> = ({
+  onClose,
+  latestMessageContent,
+  onSelectHeading,
+}) => {
+  const [activeTocId, setActiveTocId] = useState<string>('');
   const [isThoughtExpanded, setIsThoughtExpanded] = useState<boolean>(false);
 
   const tocItems = useMemo(() => {
     if (!latestMessageContent) return DEFAULT_TOC_ITEMS;
 
+    // Strip code blocks so Python/Bash comments (# comment) are ignored
+    const contentWithoutCode = latestMessageContent.replace(/```[\s\S]*?```/g, '');
+
     const headingRegex = /^(#{1,3})\s+(.+)$/gm;
-    const matches = Array.from(latestMessageContent.matchAll(headingRegex));
+    const matches = Array.from(contentWithoutCode.matchAll(headingRegex));
 
     if (matches.length === 0) return DEFAULT_TOC_ITEMS;
 
-    return matches.map((match, index) => ({
-      id: `toc-${index}`,
-      label: match[2].trim(),
-    }));
+    return matches.map((match) => {
+      const text = match[2].trim();
+      const id = `heading-${slugify(text)}`;
+      return {
+        id,
+        label: text,
+      };
+    });
   }, [latestMessageContent]);
 
   return (
@@ -72,12 +91,15 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ onClose, latestMessa
 
         <nav className="toc-list">
           {tocItems.map((item, idx) => {
-            const isActive = activeTocId === item.id || (activeTocId === '0' && idx === 0);
+            const isActive = activeTocId === item.id || (activeTocId === '' && idx === 0);
             return (
               <button
                 key={item.id}
                 className={`toc-item ${isActive ? 'active' : ''}`}
-                onClick={() => setActiveTocId(item.id)}
+                onClick={() => {
+                  setActiveTocId(item.id);
+                  onSelectHeading?.(item.id);
+                }}
               >
                 {item.label}
               </button>
