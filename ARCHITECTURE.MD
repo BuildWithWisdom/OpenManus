@@ -44,5 +44,15 @@ Living architecture document for the AI Engineering course project.
 - Created interactive Lightbox Modal component featuring drag-to-pan (`translate3d`), wheel zoom controls (40%–300%), reset button, and proportional scaling.
 - Updated application typography (15px message bubbles and paragraphs) and code block rendering with line numbers removed.
 
+---
+
+### Module 4 — AI APIs & Real-Time Token Streaming Engine
+
+- Built zero-dependency Cloudflare AI Gateway REST Provider (`providerFactory.ts`) supporting NVIDIA NIM (`custom-nvidia`) and Cloudflare Workers AI (`workers-ai`) models.
+- Implemented real-time SSE chunk decoder in Node.js main process delivering token streams over Electron IPC (`chat:onTokenChunk`).
+- Built reasoning chunk stream parser (`delta.reasoning_content`) auto-wrapped in `<think>` tags and collapsible `ThoughtCard` accordion UI in `MessageList.tsx`.
+- Integrated active stream cancellation (`chat:abortStream`) with dynamic stop generation button in `ChatInput.tsx`.
+- Created provider-grouped model dropdown UI (`NVIDIA NIM`, `Cloudflare Workers AI`) with vertical scrolling (`max-height: 280px`) and click-outside dismissal.
+- Polish status card footer in `Sidebar.tsx` with clean model titles and vertically centered green connection indicator dot.
 
 ---

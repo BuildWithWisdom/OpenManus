@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import OpenManusLogo from '../assets/OpenManusLogo';
 import { Conversation } from '../types';
+import { getModelDisplayName } from './ChatInput';
 
 interface Lesson {
   id: string;
@@ -485,12 +486,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Footer */}
         <div className="sidebar-footer">
           <div className="status-card">
+            <span className="status-dot" />
             <div className="status-info">
-              <div className="status-row">
-                <span className="status-dot" />
-                <span className="status-label">Connected</span>
-              </div>
-              <span className="status-model">{selectedModel}</span>
+              <span className="status-label">Connected</span>
+              <span className="status-model">{getModelDisplayName(selectedModel)}</span>
             </div>
             <button className="status-settings-btn" title="Connection Settings">
               <SlidersHorizontal size={18} />

@@ -48,6 +48,22 @@ declare global {
         messages: Array<{ role: string; content: string }>,
         modelName?: string
       ) => Promise<LLMResponse>;
+      streamMessageToLLM: (
+        requestId: string,
+        messages: Array<{ role: string; content: string }>,
+        modelName?: string
+      ) => Promise<void>;
+      abortStream: (requestId: string) => Promise<void>;
+      onTokenChunk: (
+        callback: (data: { requestId: string; chunk: string }) => void
+      ) => () => void;
+      onStreamComplete: (
+        callback: (data: { requestId: string }) => void
+      ) => () => void;
+      onStreamError: (
+        callback: (data: { requestId: string; error: string }) => void
+      ) => () => void;
+      getAvailableModels: () => Promise<Array<{ id: string; name: string }>>;
     };
   }
 }
