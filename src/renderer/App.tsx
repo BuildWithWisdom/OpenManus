@@ -13,36 +13,43 @@ export const App: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState<string>('step-3.7-flash');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showRightSidebar, setShowRightSidebar] = useState<boolean>(false);
+  const [showLeftSidebar, setShowLeftSidebar] = useState<boolean>(true);
   const [activeTurnIndex, setActiveTurnIndex] = useState<number>(0);
 
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: 'conv-1',
-      title: 'New Conversation',
-      timestamp: 'Just now',
-      messages: [],
-    },
-  ]);
-
-  const [activeId, setActiveId] = useState<string>('conv-1');
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string>('');
 
   const toggleTheme = useCallback((): void => {
     setTheme((previousTheme) => (previousTheme === 'dark' ? 'light' : 'dark'));
   }, []);
 
-  const currentConversation = conversations.find((c) => c.id === activeId) || conversations[0];
+  const handleToggleLeftSidebar = useCallback((): void => {
+    setShowLeftSidebar((prev) => !prev);
+  }, []);
+
+  const defaultEmptyConv: Conversation = useMemo(
+    () => ({
+      id: '',
+      title: 'New Chat',
+      timestamp: '',
+      messages: [],
+    }),
+    []
+  );
+
+  const currentConversation = conversations.find((c) => c.id === activeId) || conversations[0] || defaultEmptyConv;
 
   const turns = useMemo<TurnItem[]>(() => {
     const userMsgs = currentConversation.messages.filter((m) => m.role === 'user');
     if (userMsgs.length === 0) {
-      return [{ id: 'demo-0', index: 0, title: 'New Conversation' }];
+      return [{ id: 'demo-0', index: 0, title: currentConversation.title || 'New Chat' }];
     }
     return userMsgs.map((m, idx) => ({
       id: m.id,
       index: idx,
       title: m.content.length > 40 ? `${m.content.slice(0, 40)}...` : m.content,
     }));
-  }, [currentConversation.messages]);
+  }, [currentConversation.messages, currentConversation.title]);
 
   const handleSelectTurn = useCallback((turnIndex: number): void => {
     setActiveTurnIndex(turnIndex);
@@ -56,98 +63,121 @@ export const App: React.FC = () => {
     setShowRightSidebar((prev) => !prev);
   }, []);
 
-  const handleSendMessage = useCallback(async (text: string): Promise<void> => {
-    const userMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
+  const handleSendMessage = useCallback(
+    async (text: string): Promise<void> => {
+      const userMsg: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        role: 'user',
+        content: text,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
 
-    let updatedHistory: ChatMessage[] = [];
+      let currentConvId = activeId;
+      if (!currentConvId) {
+        currentConvId = `conv-${Date.now()}`;
+        setActiveId(currentConvId);
+      }
 
-    setConversations((previous) =>
-      previous.map((conv) => {
-        if (conv.id === activeId) {
-          updatedHistory = [...conv.messages, userMsg];
-          const newTitle = conv.messages.length === 0 ? text.slice(0, 32) : conv.title;
-          return {
-            ...conv,
-            title: newTitle,
-            messages: updatedHistory,
-          };
-        }
-        return conv;
-      })
-    );
+      // 1. Synchronously compute history and payload BEFORE state batching & API call
+      const existingConv = conversations.find((c) => c.id === currentConvId);
+      const existingMessages = existingConv ? existingConv.messages : [];
+      const updatedHistory = [...existingMessages, userMsg];
 
-    const newTurnIndex = updatedHistory.filter((m) => m.role === 'user').length - 1;
-    setActiveTurnIndex(Math.max(0, newTurnIndex));
-
-    setIsLoading(true);
-
-    try {
       const apiPayload = updatedHistory.map((m) => ({
         role: m.role,
         content: m.content,
       }));
 
-      let assistantResponseText = '';
+      // 2. Queue state update for renderer UI
+      setConversations((previous) => {
+        const activeExists = previous.some((c) => c.id === currentConvId);
+        if (!activeExists || previous.length === 0) {
+          const newConv: Conversation = {
+            id: currentConvId,
+            title: text.slice(0, 32),
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            messages: updatedHistory,
+          };
+          return [newConv, ...previous];
+        }
 
-      if (window.electronAPI?.sendMessageToLLM) {
-        const response = await window.electronAPI.sendMessageToLLM(apiPayload, selectedModel);
-        assistantResponseText = response.message;
-      } else {
-        assistantResponseText = 'Electron API bridge not available.';
+        return previous.map((conv) => {
+          if (conv.id === currentConvId) {
+            const newTitle = conv.messages.length === 0 ? text.slice(0, 32) : conv.title;
+            return {
+              ...conv,
+              title: newTitle,
+              messages: updatedHistory,
+            };
+          }
+          return conv;
+        });
+      });
+
+      const newTurnIndex = updatedHistory.filter((m) => m.role === 'user').length - 1;
+      setActiveTurnIndex(Math.max(0, newTurnIndex));
+
+      setIsLoading(true);
+
+      try {
+        let assistantResponseText = '';
+
+        if (window.electronAPI?.sendMessageToLLM) {
+          const response = await window.electronAPI.sendMessageToLLM(apiPayload, selectedModel);
+          assistantResponseText = response.message;
+        } else {
+          assistantResponseText = 'Electron API bridge not available.';
+        }
+
+        const assistantMsg: ChatMessage = {
+          id: `msg-reply-${Date.now()}`,
+          role: 'assistant',
+          content: assistantResponseText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+
+        setConversations((previous) =>
+          previous.map((conv) => {
+            if (conv.id === currentConvId) {
+              return {
+                ...conv,
+                messages: [...conv.messages, assistantMsg],
+              };
+            }
+            return conv;
+          })
+        );
+      } catch (err: any) {
+        const errorMsg: ChatMessage = {
+          id: `msg-err-${Date.now()}`,
+          role: 'assistant',
+          content: `Error connecting to StepFun AI: ${err?.message || 'Unknown error'}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+
+        setConversations((previous) =>
+          previous.map((conv) => {
+            if (conv.id === currentConvId) {
+              return {
+                ...conv,
+                messages: [...conv.messages, errorMsg],
+              };
+            }
+            return conv;
+          })
+        );
+      } finally {
+        setIsLoading(false);
       }
-
-      const assistantMsg: ChatMessage = {
-        id: `msg-reply-${Date.now()}`,
-        role: 'assistant',
-        content: assistantResponseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setConversations((previous) =>
-        previous.map((conv) => {
-          if (conv.id === activeId) {
-            return {
-              ...conv,
-              messages: [...conv.messages, assistantMsg],
-            };
-          }
-          return conv;
-        })
-      );
-    } catch (err: any) {
-      const errorMsg: ChatMessage = {
-        id: `msg-err-${Date.now()}`,
-        role: 'assistant',
-        content: `Error connecting to StepFun AI: ${err?.message || 'Unknown error'}`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setConversations((previous) =>
-        previous.map((conv) => {
-          if (conv.id === activeId) {
-            return {
-              ...conv,
-              messages: [...conv.messages, errorMsg],
-            };
-          }
-          return conv;
-        })
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeId, selectedModel]);
+    },
+    [activeId, conversations, selectedModel]
+  );
 
   const handleNewChat = useCallback((): void => {
     const newConvId = `conv-${Date.now()}`;
     const newConv: Conversation = {
       id: newConvId,
-      title: 'New Conversation',
+      title: 'New Chat',
       timestamp: 'Just now',
       messages: [],
     };
@@ -156,7 +186,6 @@ export const App: React.FC = () => {
     setActiveTurnIndex(0);
   }, []);
 
-  // Find assistant message for active turn
   const activeTurnAssistantMessage = useMemo(() => {
     const userMsgs = currentConversation.messages.filter((m) => m.role === 'user');
     if (userMsgs.length === 0) {
@@ -191,10 +220,17 @@ export const App: React.FC = () => {
         onSelectConversation={handleSelectConversation}
         onNewChat={handleNewChat}
         selectedModel={selectedModel}
+        isLeftSidebarVisible={showLeftSidebar}
+        onToggleSidebar={handleToggleLeftSidebar}
       />
 
       <div className="main-content">
-        <Header theme={theme} onToggleTheme={toggleTheme} />
+        <Header
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          isLeftSidebarVisible={showLeftSidebar}
+          onToggleLeftSidebar={handleToggleLeftSidebar}
+        />
 
         <div className="main-workspace-area">
           <div className="chat-workspace-card">
