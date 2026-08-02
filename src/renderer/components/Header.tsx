@@ -1,16 +1,34 @@
 import React from 'react';
-import { Sun, Moon, BookOpen, Settings } from 'lucide-react';
+import { Sun, Moon, BookOpen, Settings, PanelLeftClose } from 'lucide-react';
 import { ThemeMode } from '../types';
 
 interface HeaderProps {
   theme: ThemeMode;
   onToggleTheme: () => void;
+  isLeftSidebarVisible?: boolean;
+  onToggleLeftSidebar?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ theme, onToggleTheme }) => {
+export const Header: React.FC<HeaderProps> = ({
+  theme,
+  onToggleTheme,
+  isLeftSidebarVisible = true,
+  onToggleLeftSidebar,
+}) => {
   return (
     <header className="global-header-container">
-      <div className="global-header-left" />
+      <div className="global-header-left">
+        {onToggleLeftSidebar && !isLeftSidebarVisible && (
+          <button
+            className="global-header-btn"
+            onClick={onToggleLeftSidebar}
+            title="Expand Sidebar"
+            aria-label="Expand Left Sidebar"
+          >
+            <PanelLeftClose size={18} />
+          </button>
+        )}
+      </div>
 
       <div className="global-header-right">
         <button

@@ -128,7 +128,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               <FileText size={16} />
             </div>
             <div className="related-info">
-              <span className="related-title">OpenManus Documentation</span>
+              <span className="related-title">Gohard Documentation</span>
               <div className="related-subtitle-row">
                 <span className="related-subtitle">Project Workspace</span>
               </div>

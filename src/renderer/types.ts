@@ -12,6 +12,27 @@ export interface Conversation {
   messages: ChatMessage[];
 }
 
+export interface LessonChat {
+  id: string;
+  title: string;
+  status?: 'completed' | 'in_progress' | 'upcoming';
+  messages: ChatMessage[];
+}
+
+export interface ModuleFolder {
+  id: string;
+  title: string;
+  isExpanded?: boolean;
+  lessons: LessonChat[];
+}
+
+export interface SkillCourse {
+  id: string;
+  title: string;
+  progressPercent: number;
+  modules: ModuleFolder[];
+}
+
 export type ThemeMode = 'dark' | 'light';
 
 export interface LLMResponse {

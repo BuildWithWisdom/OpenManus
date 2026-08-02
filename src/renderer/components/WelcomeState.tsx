@@ -35,7 +35,7 @@ export const WelcomeState: React.FC<WelcomeStateProps> = ({ onSelectPrompt }) =>
       <div className="welcome-hero">
         <OpenManusLogo size={52} className="hero-logo" />
         <h1 className="welcome-title">
-          Hello, I’m <span className="highlight-green">OpenManus</span>.
+          Hello, I’m <span className="highlight-green">Gohard</span>.
         </h1>
         <p className="welcome-subtitle">How can I help you today?</p>
       </div>
