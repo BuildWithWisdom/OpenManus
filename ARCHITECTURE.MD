@@ -35,3 +35,14 @@ Living architecture document for the AI Engineering course project.
 - Integrated `buildSystemPrompt()` into `src/main/main.ts` IPC handler for dynamic system message assembly.
 
 ---
+
+### Module 3 — Structured Outputs & Diagram Rendering Engine
+
+- Integrated Mermaid.js diagram engine with custom normalizer supporting 4 syntax formats (`subgraph ID ["Title"]`, quoted/unquoted IDs).
+- Implemented `subGraphTitleMargin: { top: 12, bottom: 20 }` layout engine configuration for clean subgraph header spacing.
+- Built automatic global emoji scrubber stripping unicode symbols from titles, nodes, and labels across all diagram types.
+- Created interactive Lightbox Modal component featuring drag-to-pan (`translate3d`), wheel zoom controls (40%–300%), reset button, and proportional scaling.
+- Updated application typography (15px message bubbles and paragraphs) and code block rendering with line numbers removed.
+
+
+---
