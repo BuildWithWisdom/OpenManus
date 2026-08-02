@@ -1,13 +1,93 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { ThumbsUp, ThumbsDown, Copy, RotateCw, Check, Maximize2, X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Copy, RotateCw, Check, Maximize2, X, ZoomIn, ZoomOut, RotateCcw, ChevronRight } from 'lucide-react';
 import mermaid from 'mermaid';
 import OpenManusLogo from '../assets/OpenManusLogo';
 import { WelcomeState } from './WelcomeState';
 import { ChatMessage } from '../types';
+
+export interface ParsedMessageContent {
+  thinking: string | null;
+  mainContent: string;
+  isStillThinking: boolean;
+}
+
+export function parseMessageThinking(content: string): ParsedMessageContent {
+  const thinkStartMatch = content.match(/<think>/i);
+  if (!thinkStartMatch || thinkStartMatch.index === undefined) {
+    return { thinking: null, mainContent: content, isStillThinking: false };
+  }
+
+  const startIndex = thinkStartMatch.index + thinkStartMatch[0].length;
+  const thinkEndMatch = content.match(/<\/think>/i);
+
+  if (thinkEndMatch && thinkEndMatch.index !== undefined) {
+    const thinking = content.slice(startIndex, thinkEndMatch.index).trim();
+    const mainContent = (content.slice(0, thinkStartMatch.index) + content.slice(thinkEndMatch.index + thinkEndMatch[0].length)).trim();
+    return { thinking, mainContent, isStillThinking: false };
+  }
+
+  const thinking = content.slice(startIndex).trim();
+  const mainContent = content.slice(0, thinkStartMatch.index).trim();
+  return { thinking, mainContent, isStillThinking: true };
+}
+
+const ThoughtCard: React.FC<{ thinking: string; isStillThinking: boolean }> = ({ thinking, isStillThinking }) => {
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
+
+  return (
+    <div className="thought-card-wrapper" style={{ marginBottom: '14px' }}>
+      <div
+        className="thought-card-header"
+        onClick={() => setIsExpanded((prev) => !prev)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 12px',
+          backgroundColor: '#161b22',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          fontSize: '13px',
+          color: 'var(--text-secondary)',
+          userSelect: 'none',
+        }}
+      >
+        <ChevronRight
+          size={14}
+          style={{
+            transform: isExpanded ? 'rotate(90deg)' : 'none',
+            transition: 'transform 0.15s ease',
+          }}
+        />
+        <span>{isStillThinking ? 'Thinking...' : 'Thought Process'}</span>
+      </div>
+
+      {isExpanded && (
+        <div
+          className="thought-card-content"
+          style={{
+            marginTop: '6px',
+            padding: '12px',
+            backgroundColor: '#0d1117',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            borderRadius: '8px',
+            fontSize: '13px',
+            lineHeight: '1.6',
+            color: 'var(--text-muted)',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {thinking}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -299,24 +379,34 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       }
     };
 
-    // Continuous ResizeObserver auto-scroll anchor (handles text landing & asynchronous diagram rendering)
-    useEffect(() => {
+
+    const spacerRef = useRef<HTMLDivElement>(null);
+    const [dynamicSpacerHeight, setDynamicSpacerHeight] = useState<number>(40);
+
+    useLayoutEffect(() => {
+      if (!isLoading) {
+        setDynamicSpacerHeight(40);
+        return;
+      }
       const container = containerRef.current;
-      if (!container) return;
+      const spacer = spacerRef.current;
+      const userMessages = messages.filter((m) => m.role === 'user');
+      if (!container || !spacer || userMessages.length === 0) return;
 
-      const observer = new ResizeObserver(() => {
-        container.scrollTop = container.scrollHeight;
-      });
-
-      observer.observe(container);
-
-      // Scroll immediately on new message or loading change
-      container.scrollTop = container.scrollHeight;
-
-      return () => {
-        observer.disconnect();
-      };
-    }, [messages.length, isLoading]);
+      const latestTurnIndex = userMessages.length - 1;
+      const turnElement = document.getElementById(`turn-${latestTurnIndex}`);
+      if (turnElement) {
+        const styles = window.getComputedStyle(container);
+        const paddingTop = parseFloat(styles.paddingTop) || 0;
+        const paddingBottom = parseFloat(styles.paddingBottom) || 0;
+        const innerHeight = container.clientHeight - paddingTop - paddingBottom;
+        const turnRect = turnElement.getBoundingClientRect();
+        const spacerRect = spacer.getBoundingClientRect();
+        const contentBelowTurnTop = spacerRect.top - turnRect.top;
+        const neededSpacer = Math.max(0, innerHeight - contentBelowTurnTop);
+        setDynamicSpacerHeight(neededSpacer);
+      }
+    }, [isLoading, messages]);
 
     const handleCopyMessage = (id: string, text: string) => {
       navigator.clipboard.writeText(text);
@@ -339,13 +429,13 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     return (
       <div className="messages-container" ref={containerRef}>
         {messages.map((message) => {
-          let turnId: string | undefined = undefined;
-          if (message.role === 'user') {
-            turnId = `turn-${userTurnCounter++}`;
-          }
-
+          const currentTurnIndex = message.role === 'user' ? userTurnCounter++ : -1;
           return (
-            <div key={message.id} id={turnId} className={`message-row ${message.role}`}>
+            <div
+              key={message.id}
+              id={message.role === 'user' ? `turn-${currentTurnIndex}` : undefined}
+              className={`message-row ${message.role}`}
+            >
               {message.role === 'user' ? (
                 <div className="user-message-wrapper">
                   <span className="user-timestamp">{message.timestamp || '10:42 AM'}</span>
@@ -365,88 +455,116 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
 
                   <div className="message-bubble assistant">
                     <div className="message-content">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          h1({ children }) {
-                            const textStr = Array.isArray(children) ? children.join('') : String(children);
-                            const id = `heading-${slugify(textStr)}`;
-                            return <h1 id={id} className="md-heading md-h1">{children}</h1>;
-                          },
-                          h2({ children }) {
-                            const textStr = Array.isArray(children) ? children.join('') : String(children);
-                            const id = `heading-${slugify(textStr)}`;
-                            return <h2 id={id} className="md-heading md-h2">{children}</h2>;
-                          },
-                          h3({ children }) {
-                            const textStr = Array.isArray(children) ? children.join('') : String(children);
-                            const id = `heading-${slugify(textStr)}`;
-                            return <h3 id={id} className="md-heading md-h3">{children}</h3>;
-                          },
-                          p({ children }) {
-                            return <p className="md-paragraph">{children}</p>;
-                          },
-                          ul({ children }) {
-                            return <ul className="md-list md-ul">{children}</ul>;
-                          },
-                          ol({ children }) {
-                            return <ol className="md-list md-ol">{children}</ol>;
-                          },
-                          li({ children }) {
-                            return <li className="md-list-item">{children}</li>;
-                          },
-                          strong({ children }) {
-                            return <strong className="md-strong">{children}</strong>;
-                          },
-                          hr() {
-                            return <hr className="content-divider" />;
-                          },
-                          code({ inline, className, children, ...props }: any) {
-                            const match = /language-(\w+)/.exec(className || '');
-                            const codeString = String(children).replace(/\n$/, '');
+                      {(() => {
+                        const parsed = parseMessageThinking(message.content);
+                        return (
+                          <>
+                            {parsed.thinking && (
+                              <ThoughtCard
+                                thinking={parsed.thinking}
+                                isStillThinking={parsed.isStillThinking}
+                              />
+                            )}
+                            {parsed.mainContent ? (
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  h1({ children }) {
+                                    const textStr = Array.isArray(children) ? children.join('') : String(children);
+                                    const id = `heading-${slugify(textStr)}`;
+                                    return <h1 id={id} className="md-heading md-h1">{children}</h1>;
+                                  },
+                                  h2({ children }) {
+                                    const textStr = Array.isArray(children) ? children.join('') : String(children);
+                                    const id = `heading-${slugify(textStr)}`;
+                                    return <h2 id={id} className="md-heading md-h2">{children}</h2>;
+                                  },
+                                  h3({ children }) {
+                                    const textStr = Array.isArray(children) ? children.join('') : String(children);
+                                    const id = `heading-${slugify(textStr)}`;
+                                    return <h3 id={id} className="md-heading md-h3">{children}</h3>;
+                                  },
+                                  p({ children }) {
+                                    return <p className="md-paragraph">{children}</p>;
+                                  },
+                                  ul({ children }) {
+                                    return <ul className="md-list md-ul">{children}</ul>;
+                                  },
+                                  ol({ children }) {
+                                    return <ol className="md-list md-ol">{children}</ol>;
+                                  },
+                                  li({ children }) {
+                                    return <li className="md-list-item">{children}</li>;
+                                  },
+                                  strong({ children }) {
+                                    return <strong className="md-strong">{children}</strong>;
+                                  },
+                                  hr() {
+                                    return <hr className="content-divider" />;
+                                  },
+                                  code({ inline, className, children, ...props }: any) {
+                                    const match = /language-(\w+)/.exec(className || '');
+                                    const codeString = String(children).replace(/\n$/, '');
+                                    const lang = match ? match[1].toLowerCase() : '';
 
-                            if (!inline && match && match[1] === 'mermaid') {
-                              return <MermaidDiagram chart={codeString} onExpand={(svg) => setExpandedSvg(svg)} />;
-                            }
+                                    if (!inline && lang === 'mermaid') {
+                                      return <MermaidDiagram chart={codeString} onExpand={(svg) => setExpandedSvg(svg)} />;
+                                    }
 
-                            if (!inline && match) {
-                              return <CodeBlock language="typescript" value={codeString} />;
-                            }
+                                    if (!inline && match) {
+                                      return <CodeBlock language={match[1]} value={codeString} />;
+                                    }
 
-                            if (!inline && codeString.includes('\n')) {
-                              return <CodeBlock language="typescript" value={codeString} />;
-                            }
+                                    if (!inline && codeString.includes('\n')) {
+                                      return <CodeBlock language="typescript" value={codeString} />;
+                                    }
 
-                            return (
-                              <code className="inline-code" {...props}>
-                                {children}
-                              </code>
-                            );
-                          },
-                        }}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
+                                    return (
+                                      <code className="inline-code" {...props}>
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                }}
+                              >
+                                {parsed.mainContent}
+                              </ReactMarkdown>
+                            ) : isLoading && !parsed.thinking ? (
+                              <div className="message-bubble loading">
+                                <span className="dot" />
+                                <span className="dot" />
+                                <span className="dot" />
+                              </div>
+                            ) : !message.content ? (
+                              <div className="message-content stopped" style={{ opacity: 0.6, fontStyle: 'italic', fontSize: '13px' }}>
+                                [Response stopped]
+                              </div>
+                            ) : null}
+                          </>
+                        );
+                      })()}
                     </div>
 
-                    <div className="message-action-bar">
-                      <button className="action-icon-btn" title="Like response">
-                        <ThumbsUp size={15} />
-                      </button>
-                      <button className="action-icon-btn" title="Dislike response">
-                        <ThumbsDown size={15} />
-                      </button>
-                      <button
-                        className="action-icon-btn"
-                        title="Copy message"
-                        onClick={() => handleCopyMessage(message.id, message.content)}
-                      >
-                        {copiedMsgId === message.id ? <Check size={15} /> : <Copy size={15} />}
-                      </button>
-                      <button className="action-icon-btn" title="Regenerate response">
-                        <RotateCw size={15} />
-                      </button>
-                    </div>
+                    {!isLoading && message.content && (
+                      <div className="message-action-bar">
+                        <button className="action-icon-btn" title="Like response">
+                          <ThumbsUp size={15} />
+                        </button>
+                        <button className="action-icon-btn" title="Dislike response">
+                          <ThumbsDown size={15} />
+                        </button>
+                        <button
+                          className="action-icon-btn"
+                          title="Copy message"
+                          onClick={() => handleCopyMessage(message.id, message.content)}
+                        >
+                          {copiedMsgId === message.id ? <Check size={15} /> : <Copy size={15} />}
+                        </button>
+                        <button className="action-icon-btn" title="Regenerate response">
+                          <RotateCw size={15} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -454,23 +572,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
           );
         })}
 
-        {isLoading && (
-          <div className="message-row assistant">
-            <div className="assistant-message-wrapper">
-              <div className="assistant-header-row">
-                <div className="avatar-container">
-                  <OpenManusLogo size={20} />
-                </div>
-                <span className="assistant-name">Gohard</span>
-              </div>
-              <div className="message-bubble loading">
-                <span className="dot" />
-                <span className="dot" />
-                <span className="dot" />
-              </div>
-            </div>
-          </div>
-        )}
+        <div ref={spacerRef} className="messages-bottom-spacer" style={{ height: `${dynamicSpacerHeight}px` }} aria-hidden="true" />
 
         {/* Fullscreen Diagram Lightbox Modal */}
         {expandedSvg && (
