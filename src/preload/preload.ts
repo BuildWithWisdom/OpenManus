@@ -7,8 +7,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   streamMessageToLLM: (
     requestId: string,
     messages: Array<{ role: string; content: string }>,
-    modelName?: string
-  ) => ipcRenderer.invoke('chat:streamMessage', requestId, messages, modelName),
+    modelName?: string,
+    providerSlug?: string
+  ) => ipcRenderer.invoke('chat:streamMessage', requestId, messages, modelName, providerSlug),
   abortStream: (requestId: string) => ipcRenderer.invoke('chat:abortStream', requestId),
   onTokenChunk: (
     callback: (data: { requestId: string; chunk: string }) => void

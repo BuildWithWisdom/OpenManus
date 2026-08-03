@@ -4,8 +4,11 @@ import started from 'electron-squirrel-startup';
 import dotenv from 'dotenv';
 import { createStreamResponse } from './providers/providerFactory';
 import { ChatMessagePayload } from './providers/types';
+import { MODEL_GROUPS } from './models';
 
+dotenv.config();
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 if (started) {
   app.quit();
@@ -19,7 +22,8 @@ ipcMain.handle(
     event,
     requestId: string,
     messages: Array<{ role: string; content: string }>,
-    modelName?: string
+    modelName?: string,
+    providerSlug?: string
   ) => {
     const senderWebContents = event.sender;
     const selectedModel = modelName || 'deepseek-ai/deepseek-v4-pro';
@@ -38,9 +42,14 @@ ipcMain.handle(
       }
     }, 60000);
 
+    const allModels = MODEL_GROUPS.flatMap((group) => group.models);
+    const foundModel = allModels.find((m) => m.id === selectedModel);
+    const resolvedProviderSlug = providerSlug || foundModel?.providerSlug;
+
     try {
       const { type, response } = await createStreamResponse({
         modelName: selectedModel,
+        providerSlug: resolvedProviderSlug,
         messages: messages as ChatMessagePayload[],
       });
 
@@ -135,41 +144,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle('chat:getAvailableModels', async () => {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID || '8fcf60d206c33a3e9f758c983cfbf622';
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN || '';
-
-  try {
-    const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/models/search?task=Text%20Generation`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-        },
-      }
-    );
-    const data = await response.json();
-    if (data.success && Array.isArray(data.result)) {
-      const fetchedModels = data.result.map((modelItem: { name: string }) => ({
-        id: modelItem.name,
-        name: `${modelItem.name.replace('@cf/', '')} (Cloudflare AI)`,
-      }));
-
-      const customNvidiaModels = [
-        { id: 'custom-nvidia/meta/llama-3.3-70b-instruct', name: 'llama-3.3-70b-instruct (NVIDIA NIM)' },
-        { id: 'custom-nvidia/deepseek-ai/deepseek-r1', name: 'deepseek-r1 (NVIDIA NIM)' },
-      ];
-
-      return [...fetchedModels, ...customNvidiaModels];
-    }
-  } catch (error) {
-    console.error('[Fetch Models Error]:', error);
-  }
-
-  return [
-    { id: '@cf/moonshotai/kimi-k2.6', name: 'kimi-k2.6 (Cloudflare AI)' },
-    { id: '@cf/meta/llama-3.1-8b-instruct', name: 'llama-3.1-8b-instruct (Cloudflare AI)' },
-    { id: 'custom-nvidia/meta/llama-3.3-70b-instruct', name: 'llama-3.3-70b-instruct (NVIDIA NIM)' },
-  ];
+  return MODEL_GROUPS;
 });
 
 ipcMain.handle('chat:abortStream', (_event, requestId: string) => {

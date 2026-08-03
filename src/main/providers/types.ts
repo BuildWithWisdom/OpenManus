@@ -14,6 +14,7 @@ export interface ChatMessagePayload {
 
 export interface StreamMessageOptions {
   modelName: string;
+  providerSlug?: string;
   messages: ChatMessagePayload[];
   personaId?: string;
 }

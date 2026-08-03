@@ -91,7 +91,6 @@ body {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  user-select: none;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -1805,6 +1804,16 @@ body {
 }
 
 /* Markdown & Code Block Typography */
+.message-content,
+.message-bubble,
+.messages-container,
+.code-block-wrapper,
+.thought-card-content,
+.right-sidebar-container {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 .message-content p {
   margin: 0 0 10px 0;
   line-height: 1.6;
@@ -2258,6 +2267,32 @@ body {
   border-radius: 12px;
   background: rgba(16, 22, 29, 0.6);
   padding: 12px;
+}
+
+.mermaid-skeleton-loading {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mermaid-loading-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mermaid-spinner {
+  animation: spin 1s linear infinite;
+  color: #10b981;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .mermaid-expand-btn {

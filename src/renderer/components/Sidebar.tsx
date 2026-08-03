@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import OpenManusLogo from '../assets/OpenManusLogo';
 import { Conversation } from '../types';
-import { getModelDisplayName } from './ChatInput';
+import { getModelDisplayName } from '../models';
 
 interface Lesson {
   id: string;

@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { ThumbsUp, ThumbsDown, Copy, RotateCw, Check, Maximize2, X, ZoomIn, ZoomOut, RotateCcw, ChevronRight } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Copy, RotateCw, Check, Maximize2, X, ZoomIn, ZoomOut, RotateCcw, ChevronRight, Loader2 } from 'lucide-react';
 import mermaid from 'mermaid';
 import OpenManusLogo from '../assets/OpenManusLogo';
 import { WelcomeState } from './WelcomeState';
@@ -196,35 +196,53 @@ mermaid.initialize({
 const MermaidDiagram = React.memo(({ chart, onExpand }: { chart: string; onExpand: (svg: string) => void }) => {
   const [svgMarkup, setSvgMarkup] = useState<string>('');
   const [hasError, setHasError] = useState<boolean>(false);
+  const [isRendering, setIsRendering] = useState<boolean>(true);
 
   useEffect(() => {
     let isMounted = true;
-    const uniqueId = `mermaid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    setIsRendering(true);
 
-    const cleanChart = normalizeMermaidChart(chart);
+    const timer = setTimeout(() => {
+      const uniqueId = `mermaid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const cleanChart = normalizeMermaidChart(chart);
 
-    mermaid
-      .render(uniqueId, cleanChart)
-      .then(({ svg }) => {
-        if (isMounted) {
-          setSvgMarkup(svg);
-          setHasError(false);
-        }
-      })
-      .catch((err) => {
-        console.error('Mermaid render error:', err);
-        if (isMounted) {
-          setHasError(true);
-        }
-      });
+      mermaid
+        .render(uniqueId, cleanChart)
+        .then(({ svg }) => {
+          if (isMounted) {
+            setSvgMarkup(svg);
+            setHasError(false);
+            setIsRendering(false);
+          }
+        })
+        .catch((err) => {
+          console.error('Mermaid render error:', err);
+          if (isMounted) {
+            setHasError(true);
+            setIsRendering(false);
+          }
+        });
+    }, 300);
 
     return () => {
       isMounted = false;
+      clearTimeout(timer);
     };
   }, [chart]);
 
   if (hasError) {
     return <CodeBlock language="mermaid" value={chart} />;
+  }
+
+  if (isRendering || !svgMarkup) {
+    return (
+      <div className="mermaid-card-container mermaid-skeleton-loading">
+        <div className="mermaid-loading-wrapper">
+          <Loader2 size={16} className="mermaid-spinner" />
+          <span>Generating diagram...</span>
+        </div>
+      </div>
+    );
   }
 
   return (

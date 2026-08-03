@@ -6,6 +6,7 @@ import { RightSidebar } from './components/RightSidebar';
 import { MessageList } from './components/MessageList';
 import { ChatInput } from './components/ChatInput';
 import { ChatMessage, Conversation, ThemeMode } from './types';
+import { getModelById } from './models';
 import './theme.css';
 
 export const App: React.FC = () => {
@@ -263,7 +264,8 @@ export const App: React.FC = () => {
 
       try {
         if (window.electronAPI?.streamMessageToLLM) {
-          await window.electronAPI.streamMessageToLLM(requestId, apiPayload, selectedModel);
+          const modelObj = getModelById(selectedModel);
+          await window.electronAPI.streamMessageToLLM(requestId, apiPayload, selectedModel, modelObj?.providerSlug);
         } else if (window.electronAPI?.sendMessageToLLM) {
           const response = await window.electronAPI.sendMessageToLLM(apiPayload, selectedModel);
           setConversations((previous) =>

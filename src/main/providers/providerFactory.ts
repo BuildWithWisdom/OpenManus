@@ -1,11 +1,15 @@
 import { buildSystemPrompt } from '../prompts/promptBuilder';
 import { ChatMessagePayload, StreamMessageOptions } from './types';
 
-const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || '8fcf60d206c33a3e9f758c983cfbf622';
-const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || '';
-const GATEWAY_ID = process.env.CLOUDFLARE_GATEWAY_ID || 'ai-engineer';
-
 export async function createStreamResponse(options: StreamMessageOptions) {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  const gatewayId = process.env.CLOUDFLARE_GATEWAY_ID || 'ai-engineer';
+
+  if (!accountId || !apiToken) {
+    throw new Error('Missing Cloudflare API credentials. Please set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in your .env file.');
+  }
+
   const systemPrompt = buildSystemPrompt({ personaId: options.personaId });
   const sanitizedMessages = options.messages
     .filter((messageItem: ChatMessagePayload) => messageItem.content && messageItem.content.trim().length > 0)
@@ -19,16 +23,15 @@ export async function createStreamResponse(options: StreamMessageOptions) {
     ...sanitizedMessages,
   ];
 
-  const modelName = options.modelName || 'deepseek-ai/deepseek-v4-pro';
-  const isWorkersAi = modelName.startsWith('@cf/');
-  const providerSlug = isWorkersAi ? 'workers-ai' : 'custom-nvidia';
+  const modelName = options.modelName;
+  const providerSlug = options.providerSlug || (modelName.startsWith('@cf/') ? 'workers-ai' : 'custom-nvidia');
 
-  const endpoint = `https://gateway.ai.cloudflare.com/v1/${ACCOUNT_ID}/${GATEWAY_ID}/${providerSlug}/v1/chat/completions`;
+  const endpoint = `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}/${providerSlug}/v1/chat/completions`;
 
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      'cf-aig-authorization': `Bearer ${API_TOKEN}`,
+      'cf-aig-authorization': `Bearer ${apiToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
