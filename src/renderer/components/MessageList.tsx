@@ -358,6 +358,9 @@ const CodeBlock = React.memo(({ language, value }: { language: string; value: st
           fontFamily: 'monospace',
           borderBottomLeftRadius: '10px',
           borderBottomRightRadius: '10px',
+          maxWidth: '100%',
+          overflowX: 'auto',
+          minWidth: 0,
         }}
       >
         {value}
@@ -448,6 +451,28 @@ const MessageRow = React.memo<MessageRowProps>(
                             },
                             hr() {
                               return <hr className="content-divider" />;
+                            },
+                            table({ children }) {
+                              return (
+                                <div className="md-table-wrapper">
+                                  <table className="md-table">{children}</table>
+                                </div>
+                              );
+                            },
+                            thead({ children }) {
+                              return <thead className="md-thead">{children}</thead>;
+                            },
+                            tbody({ children }) {
+                              return <tbody className="md-tbody">{children}</tbody>;
+                            },
+                            tr({ children }) {
+                              return <tr className="md-tr">{children}</tr>;
+                            },
+                            th({ children }) {
+                              return <th className="md-th">{children}</th>;
+                            },
+                            td({ children }) {
+                              return <td className="md-td">{children}</td>;
                             },
                             code({ inline, className, children, ...props }: any) {
                               const match = /language-(\w+)/.exec(className || '');

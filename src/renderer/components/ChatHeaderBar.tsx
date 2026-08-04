@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ChevronDown,
   SlidersHorizontal,
@@ -11,6 +11,7 @@ import {
   Moon,
   BookOpen,
   Settings,
+  PanelLeft,
 } from 'lucide-react';
 import { ThemeMode } from '../types';
 
@@ -29,6 +30,8 @@ interface ChatHeaderBarProps {
   hasMessages?: boolean;
   theme?: ThemeMode;
   onToggleTheme?: () => void;
+  isLeftSidebarVisible?: boolean;
+  onToggleLeftSidebar?: () => void;
 }
 
 export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
@@ -40,11 +43,34 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
   hasMessages = false,
   theme = 'dark',
   onToggleTheme,
+  isLeftSidebarVisible = true,
+  onToggleLeftSidebar,
 }) => {
   const [showTurnsDropdown, setShowTurnsDropdown] = useState<boolean>(false);
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
 
+  const turnsMenuRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
   const isDisabled = !hasMessages;
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false);
+      }
+      if (turnsMenuRef.current && !turnsMenuRef.current.contains(event.target as Node)) {
+        setShowTurnsDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   const effectiveTurns: TurnItem[] =
     turns.length > 0
@@ -55,41 +81,55 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
 
   return (
     <div className="chat-card-header">
-      <div className="chat-title-dropdown-container">
-        <button
-          type="button"
-          className="chat-title-wrapper-btn"
-          disabled={isDisabled}
-          onClick={() => {
-            if (isDisabled) return;
-            setShowTurnsDropdown((prev) => !prev);
-            setShowMoreMenu(false);
-          }}
-        >
-          <span className="chat-card-title">{hasMessages ? currentTurn.title : title}</span>
-          {!isDisabled && <ChevronDown size={14} className="chat-title-chevron" />}
-        </button>
-
-        {showTurnsDropdown && !isDisabled && (
-          <div className="turns-dropdown-menu">
-            {effectiveTurns.map((turn) => {
-              const isActive = turn.index === activeTurnIndex;
-              return (
-                <button
-                  key={turn.id}
-                  type="button"
-                  className={`turn-dropdown-item ${isActive ? 'active' : ''}`}
-                  onClick={() => {
-                    onSelectTurn?.(turn.index);
-                    setShowTurnsDropdown(false);
-                  }}
-                >
-                  <span className="turn-label">{turn.title}</span>
-                </button>
-              );
-            })}
-          </div>
+      <div className="chat-header-left-group">
+        {onToggleLeftSidebar && (
+          <button
+            type="button"
+            className={`chat-action-btn sidebar-open-btn ${!isLeftSidebarVisible ? 'visible' : ''}`}
+            onClick={onToggleLeftSidebar}
+            title="Open Sidebar"
+            aria-label="Open Sidebar"
+          >
+            <PanelLeft size={18} />
+          </button>
         )}
+
+        <div className="chat-title-dropdown-container" ref={turnsMenuRef}>
+          <button
+            type="button"
+            className="chat-title-wrapper-btn"
+            disabled={isDisabled}
+            onClick={() => {
+              if (isDisabled) return;
+              setShowTurnsDropdown((prev) => !prev);
+              setShowMoreMenu(false);
+            }}
+          >
+            <span className="chat-card-title">{hasMessages ? currentTurn.title : title}</span>
+            {!isDisabled && <ChevronDown size={14} className="chat-title-chevron" />}
+          </button>
+
+          {showTurnsDropdown && !isDisabled && (
+            <div className="turns-dropdown-menu">
+              {effectiveTurns.map((turn) => {
+                const isActive = turn.index === activeTurnIndex;
+                return (
+                  <button
+                    key={turn.id}
+                    type="button"
+                    className={`turn-dropdown-item ${isActive ? 'active' : ''}`}
+                    onClick={() => {
+                      onSelectTurn?.(turn.index);
+                      setShowTurnsDropdown(false);
+                    }}
+                  >
+                    <span className="turn-label">{turn.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="chat-header-actions">
@@ -103,14 +143,12 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
           <SlidersHorizontal size={17} />
         </button>
 
-        <div className="chat-more-dropdown-container">
+        <div className="chat-more-dropdown-container" ref={moreMenuRef}>
           <button
             className="chat-action-btn"
             title="More Options"
-            disabled={isDisabled}
             aria-label="More Options"
             onClick={() => {
-              if (isDisabled) return;
               setShowMoreMenu((prev) => !prev);
               setShowTurnsDropdown(false);
             }}
@@ -118,22 +156,30 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
             <MoreHorizontal size={17} />
           </button>
 
-          {showMoreMenu && !isDisabled && (
+          {showMoreMenu && (
             <div className="chat-more-menu">
-              <button type="button" className="chat-more-item">
+              <button type="button" className="chat-more-item" disabled={isDisabled}>
                 <Copy size={15} />
                 <span>Copy conversation</span>
               </button>
-              <button type="button" className="chat-more-item">
+              <button type="button" className="chat-more-item" disabled={isDisabled}>
                 <Download size={15} />
                 <span>Export chat</span>
               </button>
-              <button type="button" className="chat-more-item">
+              <button type="button" className="chat-more-item" disabled={isDisabled}>
                 <Edit2 size={15} />
                 <span>Rename chat</span>
               </button>
+              <button type="button" className="chat-more-item mobile-only-item">
+                <BookOpen size={15} />
+                <span>Documentation</span>
+              </button>
+              <button type="button" className="chat-more-item mobile-only-item">
+                <Settings size={15} />
+                <span>Settings</span>
+              </button>
               <div className="chat-more-divider" />
-              <button type="button" className="chat-more-item danger">
+              <button type="button" className="chat-more-item danger" disabled={isDisabled}>
                 <Trash2 size={15} />
                 <span>Delete chat</span>
               </button>
@@ -152,11 +198,11 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
           </button>
         )}
 
-        <button className="chat-action-btn" title="Documentation" aria-label="Documentation">
+        <button className="chat-action-btn desktop-only-action" title="Documentation" aria-label="Documentation">
           <BookOpen size={17} />
         </button>
 
-        <button className="chat-action-btn" title="Settings" aria-label="Settings">
+        <button className="chat-action-btn desktop-only-action" title="Settings" aria-label="Settings">
           <Settings size={17} />
         </button>
       </div>

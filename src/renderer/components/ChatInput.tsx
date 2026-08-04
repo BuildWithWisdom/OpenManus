@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
-import { Paperclip, CodeXml, Globe, ChevronDown, ArrowUp, Square } from 'lucide-react';
+import { Paperclip, CodeXml, Globe, ChevronDown, ArrowUp, Square, Plus } from 'lucide-react';
 
 interface ChatInputProps {
   onSendMessage: (text: string) => void;
@@ -24,9 +24,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const [text, setText] = useState<string>('');
   const [showModelDropdown, setShowModelDropdown] = useState<boolean>(false);
+  const [showActionsMenu, setShowActionsMenu] = useState<boolean>(false);
   const [modelGroups, setModelGroups] = useState<ModelGroup[]>(MODEL_GROUPS);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -51,20 +53,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowModelDropdown(false);
       }
+      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+        setShowActionsMenu(false);
+      }
     };
 
-    if (showModelDropdown) {
+    if (showModelDropdown || showActionsMenu) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [showModelDropdown]);
+  }, [showModelDropdown, showActionsMenu]);
 
   const allModels = modelGroups.flatMap((group) => group.models);
   const activeModelOption = allModels.find((m) => m.id === selectedModel);
@@ -111,15 +118,49 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         <div className="chat-card-input-toolbar">
           <div className="card-toolbar-left">
-            <button className="card-tool-box" title="Attach file" aria-label="Attach file">
-              <Paperclip size={16} />
-            </button>
-            <button className="card-tool-box" title="Code & Tools" aria-label="Code & Tools">
-              <CodeXml size={16} />
-            </button>
-            <button className="card-tool-box" title="Web Search" aria-label="Web Search">
-              <Globe size={16} />
-            </button>
+            <div className="desktop-tools-group">
+              <button className="card-tool-box" title="Attach file" aria-label="Attach file">
+                <Paperclip size={16} />
+              </button>
+              <button className="card-tool-box" title="Code & Tools" aria-label="Code & Tools">
+                <CodeXml size={16} />
+              </button>
+              <button className="card-tool-box" title="Web Search" aria-label="Web Search">
+                <Globe size={16} />
+              </button>
+            </div>
+
+            <div ref={actionsRef} className="mobile-actions-container">
+              <button
+                type="button"
+                className={`card-tool-box mobile-plus-btn ${showActionsMenu ? 'active' : ''}`}
+                title="Add attachment or action"
+                aria-label="Add attachment or action"
+                onClick={() => {
+                  setShowActionsMenu((prev) => !prev);
+                  setShowModelDropdown(false);
+                }}
+              >
+                <Plus size={18} className={`plus-icon ${showActionsMenu ? 'rotated' : ''}`} />
+              </button>
+
+              {showActionsMenu && (
+                <div className="mobile-actions-menu">
+                  <button type="button" className="mobile-action-item" onClick={() => setShowActionsMenu(false)}>
+                    <Paperclip size={16} />
+                    <span>Attach file</span>
+                  </button>
+                  <button type="button" className="mobile-action-item" onClick={() => setShowActionsMenu(false)}>
+                    <CodeXml size={16} />
+                    <span>Code & Tools</span>
+                  </button>
+                  <button type="button" className="mobile-action-item" onClick={() => setShowActionsMenu(false)}>
+                    <Globe size={16} />
+                    <span>Web Search</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="card-toolbar-right">

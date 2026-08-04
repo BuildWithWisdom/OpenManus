@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { serve } from '@hono/node-server';
 import { chatRouter } from './modules/chat/chat.routes';
 import { Bindings } from './types';
 
@@ -19,5 +20,11 @@ app.get('/health', (c) => {
 });
 
 app.route('/api/chat', chatRouter);
+
+const port = Number(process.env.PORT) || 8787;
+if (typeof process !== 'undefined' && process.env.PORT) {
+  serve({ fetch: app.fetch, port });
+  console.log(`[Hono Node Server] Running on port ${port}`);
+}
 
 export default app;
