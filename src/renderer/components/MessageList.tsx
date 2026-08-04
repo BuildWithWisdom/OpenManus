@@ -1,9 +1,9 @@
-import React, { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { ThumbsUp, ThumbsDown, Copy, RotateCw, Check, Maximize2, X, ZoomIn, ZoomOut, RotateCcw, ChevronRight } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Copy, RotateCw, Check, Maximize2, X, ZoomIn, ZoomOut, RotateCcw, ChevronRight, Loader2 } from 'lucide-react';
 import mermaid from 'mermaid';
 import OpenManusLogo from '../assets/OpenManusLogo';
 import { WelcomeState } from './WelcomeState';
@@ -92,6 +92,7 @@ const ThoughtCard: React.FC<{ thinking: string; isStillThinking: boolean }> = ({
 interface MessageListProps {
   messages: ChatMessage[];
   isLoading?: boolean;
+  isStreaming?: boolean;
   onSelectPrompt?: (text: string) => void;
 }
 
@@ -150,6 +151,16 @@ const normalizeMermaidChart = (chart: string): string => {
     return `subgraph ${safeId}["${title}"]`;
   });
 
+  // Auto-quote unquoted node labels containing special characters, parens, or line breaks
+  clean = clean.replace(/([A-Za-z0-9_]+)\s*(\[|\{|\()([^\n\]\}]+)(\]|\}|\))/g, (fullMatch, id, openChar, content, closeChar) => {
+    const trimmed = content.trim();
+    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+      return fullMatch;
+    }
+    const cleanContent = stripEmojis(trimmed);
+    return `${id}${openChar}"${cleanContent}"${closeChar}`;
+  });
+
   // Global node label emoji scrubber (strips emojis from all node shape labels)
   clean = clean.replace(/(\[[^\]]+\]|\([^\)]+\)|\{[^\}]+\})/g, (match) => {
     return stripEmojis(match);
@@ -168,7 +179,6 @@ mermaid.initialize({
     nodeSpacing: 50,
     rankSpacing: 50,
     padding: 20,
-    subgraphPadding: 40,
     subGraphTitleMargin: {
       top: 12,
       bottom: 20,
@@ -193,38 +203,97 @@ mermaid.initialize({
   },
 });
 
+const fixSvgDimensions = (svgStr: string): string => {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svgStr, 'image/svg+xml');
+    const svgEl = doc.querySelector('svg');
+    if (!svgEl) return svgStr;
+
+    const viewBox = svgEl.getAttribute('viewBox');
+    if (viewBox) {
+      const parts = viewBox.split(/[\s,]+/).map(Number);
+      if (parts.length === 4 && !isNaN(parts[2]) && !isNaN(parts[3]) && parts[2] > 0 && parts[3] > 0) {
+        const scale = 1.85;
+        const w = Math.round(parts[2] * scale);
+        const h = Math.round(parts[3] * scale);
+        svgEl.setAttribute('width', `${w}px`);
+        svgEl.setAttribute('height', `${h}px`);
+        svgEl.style.width = `${w}px`;
+        svgEl.style.height = `${h}px`;
+        svgEl.style.maxWidth = '100%';
+      }
+    }
+    return svgEl.outerHTML;
+  } catch {
+    return svgStr;
+  }
+};
+
+const renderedSvgCache = new Map<string, string>();
+
 const MermaidDiagram = React.memo(({ chart, onExpand }: { chart: string; onExpand: (svg: string) => void }) => {
-  const [svgMarkup, setSvgMarkup] = useState<string>('');
+  const cachedSvg = renderedSvgCache.get(chart);
+  const [svgMarkup, setSvgMarkup] = useState<string>(cachedSvg || '');
   const [hasError, setHasError] = useState<boolean>(false);
+  const [isRendering, setIsRendering] = useState<boolean>(!cachedSvg);
 
   useEffect(() => {
     let isMounted = true;
-    const uniqueId = `mermaid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
-    const cleanChart = normalizeMermaidChart(chart);
+    if (renderedSvgCache.has(chart)) {
+      const cached = renderedSvgCache.get(chart)!;
+      setSvgMarkup(cached);
+      setHasError(false);
+      setIsRendering(false);
+      return;
+    }
 
-    mermaid
-      .render(uniqueId, cleanChart)
-      .then(({ svg }) => {
-        if (isMounted) {
-          setSvgMarkup(svg);
-          setHasError(false);
-        }
-      })
-      .catch((err) => {
-        console.error('Mermaid render error:', err);
-        if (isMounted) {
-          setHasError(true);
-        }
-      });
+    setIsRendering(true);
+
+    const timer = setTimeout(() => {
+      const uniqueId = `mermaid-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const cleanChart = normalizeMermaidChart(chart);
+
+      mermaid
+        .render(uniqueId, cleanChart)
+        .then(({ svg }) => {
+          if (isMounted) {
+            const normalizedSvg = fixSvgDimensions(svg);
+            renderedSvgCache.set(chart, normalizedSvg);
+            setSvgMarkup(normalizedSvg);
+            setHasError(false);
+            setIsRendering(false);
+          }
+        })
+        .catch((err) => {
+          console.error('Mermaid render error:', err);
+          if (isMounted) {
+            setHasError(true);
+            setIsRendering(false);
+          }
+        });
+    }, 300);
 
     return () => {
       isMounted = false;
+      clearTimeout(timer);
     };
   }, [chart]);
 
   if (hasError) {
     return <CodeBlock language="mermaid" value={chart} />;
+  }
+
+  if (isRendering || !svgMarkup) {
+    return (
+      <div className="mermaid-card-container mermaid-skeleton-loading">
+        <div className="mermaid-loading-wrapper">
+          <Loader2 size={16} className="mermaid-spinner" />
+          <span>Generating diagram...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -297,8 +366,162 @@ const CodeBlock = React.memo(({ language, value }: { language: string; value: st
   );
 });
 
+interface MessageRowProps {
+  message: ChatMessage;
+  currentTurnIndex: number;
+  isLastAssistant: boolean;
+  isLoading?: boolean;
+  copiedMsgId: string | null;
+  onCopyMessage: (id: string, text: string) => void;
+  onExpandMermaid: (svg: string) => void;
+}
+
+const MessageRow = React.memo<MessageRowProps>(
+  ({ message, currentTurnIndex, isLastAssistant, isLoading, copiedMsgId, onCopyMessage, onExpandMermaid }) => {
+    return (
+      <div
+        id={message.role === 'user' ? `turn-${currentTurnIndex}` : undefined}
+        className={`message-row ${message.role}`}
+      >
+        {message.role === 'user' ? (
+          <div className="user-message-wrapper">
+            <span className="user-timestamp">{message.timestamp || '10:42 AM'}</span>
+            <div className="message-bubble user">
+              <div className="message-content">{message.content}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="assistant-message-wrapper">
+            <div className="assistant-header-row">
+              <div className="avatar-container">
+                <OpenManusLogo size={20} />
+              </div>
+              <span className="assistant-name">Gohard</span>
+              <span className="assistant-timestamp">{message.timestamp || '10:42 AM'}</span>
+            </div>
+
+            <div className="message-bubble assistant">
+              <div className="message-content">
+                {(() => {
+                  const parsed = parseMessageThinking(message.content);
+                  return (
+                    <>
+                      {parsed.thinking && (
+                        <ThoughtCard
+                          thinking={parsed.thinking}
+                          isStillThinking={parsed.isStillThinking}
+                        />
+                      )}
+                      {parsed.mainContent ? (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            h1({ children }) {
+                              const textStr = Array.isArray(children) ? children.join('') : String(children);
+                              const id = `heading-${slugify(textStr)}`;
+                              return <h1 id={id} className="md-heading md-h1">{children}</h1>;
+                            },
+                            h2({ children }) {
+                              const textStr = Array.isArray(children) ? children.join('') : String(children);
+                              const id = `heading-${slugify(textStr)}`;
+                              return <h2 id={id} className="md-heading md-h2">{children}</h2>;
+                            },
+                            h3({ children }) {
+                              const textStr = Array.isArray(children) ? children.join('') : String(children);
+                              const id = `heading-${slugify(textStr)}`;
+                              return <h3 id={id} className="md-heading md-h3">{children}</h3>;
+                            },
+                            p({ children }) {
+                              return <p className="md-paragraph">{children}</p>;
+                            },
+                            ul({ children }) {
+                              return <ul className="md-list md-ul">{children}</ul>;
+                            },
+                            ol({ children }) {
+                              return <ol className="md-list md-ol">{children}</ol>;
+                            },
+                            li({ children }) {
+                              return <li className="md-list-item">{children}</li>;
+                            },
+                            strong({ children }) {
+                              return <strong className="md-strong">{children}</strong>;
+                            },
+                            hr() {
+                              return <hr className="content-divider" />;
+                            },
+                            code({ inline, className, children, ...props }: any) {
+                              const match = /language-(\w+)/.exec(className || '');
+                              const codeString = String(children).replace(/\n$/, '');
+                              const lang = match ? match[1].toLowerCase() : '';
+
+                              if (!inline && lang === 'mermaid') {
+                                return <MermaidDiagram chart={codeString} onExpand={onExpandMermaid} />;
+                              }
+
+                              if (!inline && match) {
+                                return <CodeBlock language={match[1]} value={codeString} />;
+                              }
+
+                              if (!inline && codeString.includes('\n')) {
+                                return <CodeBlock language="typescript" value={codeString} />;
+                              }
+
+                              return (
+                                <code className="inline-code" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            },
+                          }}
+                        >
+                          {parsed.mainContent}
+                        </ReactMarkdown>
+                      ) : (isLastAssistant && isLoading) ? (
+                        <div className="message-bubble loading">
+                          <span className="dot" />
+                          <span className="dot" />
+                          <span className="dot" />
+                        </div>
+                      ) : !message.content ? (
+                        <div className="message-content stopped" style={{ opacity: 0.6, fontStyle: 'italic', fontSize: '13px' }}>
+                          [Response stopped]
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </div>
+
+              {(!isLastAssistant || !isLoading) && message.content && (
+                <div className="message-action-bar">
+                  <button className="action-icon-btn" title="Like response">
+                    <ThumbsUp size={15} />
+                  </button>
+                  <button className="action-icon-btn" title="Dislike response">
+                    <ThumbsDown size={15} />
+                  </button>
+                  <button
+                    className="action-icon-btn"
+                    title="Copy message"
+                    onClick={() => onCopyMessage(message.id, message.content)}
+                  >
+                    {copiedMsgId === message.id ? <Check size={15} /> : <Copy size={15} />}
+                  </button>
+                  <button className="action-icon-btn" title="Regenerate response">
+                    <RotateCw size={15} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+
 export const MessageList: React.FC<MessageListProps> = React.memo(
-  ({ messages, isLoading, onSelectPrompt }) => {
+  ({ messages, isLoading, isStreaming, onSelectPrompt }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const zoomWrapperRef = useRef<HTMLDivElement>(null);
     const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
@@ -384,7 +607,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     const [dynamicSpacerHeight, setDynamicSpacerHeight] = useState<number>(40);
 
     useLayoutEffect(() => {
-      if (!isLoading) {
+      if (!isLoading && !isStreaming) {
         setDynamicSpacerHeight(40);
         return;
       }
@@ -408,11 +631,13 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       }
     }, [isLoading, messages]);
 
-    const handleCopyMessage = (id: string, text: string) => {
+
+
+    const handleCopyMessage = useCallback((id: string, text: string) => {
       navigator.clipboard.writeText(text);
       setCopiedMsgId(id);
       setTimeout(() => setCopiedMsgId(null), 2000);
-    };
+    }, []);
 
     const handleSelectPromptFallback = (text: string) => {
       if (onSelectPrompt) {
@@ -428,149 +653,40 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
 
     return (
       <div className="messages-container" ref={containerRef}>
-        {messages.map((message) => {
+        {messages.map((message, idx) => {
           const currentTurnIndex = message.role === 'user' ? userTurnCounter++ : -1;
+          const isLastAssistant = message.role === 'assistant' && idx === messages.length - 1;
           return (
-            <div
+            <MessageRow
               key={message.id}
-              id={message.role === 'user' ? `turn-${currentTurnIndex}` : undefined}
-              className={`message-row ${message.role}`}
-            >
-              {message.role === 'user' ? (
-                <div className="user-message-wrapper">
-                  <span className="user-timestamp">{message.timestamp || '10:42 AM'}</span>
-                  <div className="message-bubble user">
-                    <div className="message-content">{message.content}</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="assistant-message-wrapper">
-                  <div className="assistant-header-row">
-                    <div className="avatar-container">
-                      <OpenManusLogo size={20} />
-                    </div>
-                    <span className="assistant-name">Gohard</span>
-                    <span className="assistant-timestamp">{message.timestamp || '10:42 AM'}</span>
-                  </div>
-
-                  <div className="message-bubble assistant">
-                    <div className="message-content">
-                      {(() => {
-                        const parsed = parseMessageThinking(message.content);
-                        return (
-                          <>
-                            {parsed.thinking && (
-                              <ThoughtCard
-                                thinking={parsed.thinking}
-                                isStillThinking={parsed.isStillThinking}
-                              />
-                            )}
-                            {parsed.mainContent ? (
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                  h1({ children }) {
-                                    const textStr = Array.isArray(children) ? children.join('') : String(children);
-                                    const id = `heading-${slugify(textStr)}`;
-                                    return <h1 id={id} className="md-heading md-h1">{children}</h1>;
-                                  },
-                                  h2({ children }) {
-                                    const textStr = Array.isArray(children) ? children.join('') : String(children);
-                                    const id = `heading-${slugify(textStr)}`;
-                                    return <h2 id={id} className="md-heading md-h2">{children}</h2>;
-                                  },
-                                  h3({ children }) {
-                                    const textStr = Array.isArray(children) ? children.join('') : String(children);
-                                    const id = `heading-${slugify(textStr)}`;
-                                    return <h3 id={id} className="md-heading md-h3">{children}</h3>;
-                                  },
-                                  p({ children }) {
-                                    return <p className="md-paragraph">{children}</p>;
-                                  },
-                                  ul({ children }) {
-                                    return <ul className="md-list md-ul">{children}</ul>;
-                                  },
-                                  ol({ children }) {
-                                    return <ol className="md-list md-ol">{children}</ol>;
-                                  },
-                                  li({ children }) {
-                                    return <li className="md-list-item">{children}</li>;
-                                  },
-                                  strong({ children }) {
-                                    return <strong className="md-strong">{children}</strong>;
-                                  },
-                                  hr() {
-                                    return <hr className="content-divider" />;
-                                  },
-                                  code({ inline, className, children, ...props }: any) {
-                                    const match = /language-(\w+)/.exec(className || '');
-                                    const codeString = String(children).replace(/\n$/, '');
-                                    const lang = match ? match[1].toLowerCase() : '';
-
-                                    if (!inline && lang === 'mermaid') {
-                                      return <MermaidDiagram chart={codeString} onExpand={(svg) => setExpandedSvg(svg)} />;
-                                    }
-
-                                    if (!inline && match) {
-                                      return <CodeBlock language={match[1]} value={codeString} />;
-                                    }
-
-                                    if (!inline && codeString.includes('\n')) {
-                                      return <CodeBlock language="typescript" value={codeString} />;
-                                    }
-
-                                    return (
-                                      <code className="inline-code" {...props}>
-                                        {children}
-                                      </code>
-                                    );
-                                  },
-                                }}
-                              >
-                                {parsed.mainContent}
-                              </ReactMarkdown>
-                            ) : isLoading && !parsed.thinking ? (
-                              <div className="message-bubble loading">
-                                <span className="dot" />
-                                <span className="dot" />
-                                <span className="dot" />
-                              </div>
-                            ) : !message.content ? (
-                              <div className="message-content stopped" style={{ opacity: 0.6, fontStyle: 'italic', fontSize: '13px' }}>
-                                [Response stopped]
-                              </div>
-                            ) : null}
-                          </>
-                        );
-                      })()}
-                    </div>
-
-                    {!isLoading && message.content && (
-                      <div className="message-action-bar">
-                        <button className="action-icon-btn" title="Like response">
-                          <ThumbsUp size={15} />
-                        </button>
-                        <button className="action-icon-btn" title="Dislike response">
-                          <ThumbsDown size={15} />
-                        </button>
-                        <button
-                          className="action-icon-btn"
-                          title="Copy message"
-                          onClick={() => handleCopyMessage(message.id, message.content)}
-                        >
-                          {copiedMsgId === message.id ? <Check size={15} /> : <Copy size={15} />}
-                        </button>
-                        <button className="action-icon-btn" title="Regenerate response">
-                          <RotateCw size={15} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+              message={message}
+              currentTurnIndex={currentTurnIndex}
+              isLastAssistant={isLastAssistant}
+              isLoading={isLoading}
+              copiedMsgId={copiedMsgId}
+              onCopyMessage={handleCopyMessage}
+              onExpandMermaid={setExpandedSvg}
+            />
           );
         })}
+
+        {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
+          <div className="message-row assistant loading-row">
+            <div className="assistant-message-wrapper">
+              <div className="assistant-header-row">
+                <div className="avatar-container">
+                  <OpenManusLogo size={20} />
+                </div>
+                <span className="assistant-name">Gohard</span>
+              </div>
+              <div className="message-bubble loading">
+                <span className="dot" />
+                <span className="dot" />
+                <span className="dot" />
+              </div>
+            </div>
+          </div>
+        )}
 
         <div ref={spacerRef} className="messages-bottom-spacer" style={{ height: `${dynamicSpacerHeight}px` }} aria-hidden="true" />
 

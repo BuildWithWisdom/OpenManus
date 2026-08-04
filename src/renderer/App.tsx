@@ -1,26 +1,30 @@
 import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ChatHeaderBar, TurnItem } from './components/ChatHeaderBar';
 import { RightSidebar } from './components/RightSidebar';
 import { MessageList } from './components/MessageList';
 import { ChatInput } from './components/ChatInput';
 import { ChatMessage, Conversation, ThemeMode } from './types';
+import { getModelById } from './models';
+import { streamLLMMessage } from './services/llmService';
 import './theme.css';
 
 export const App: React.FC = () => {
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [selectedModel, setSelectedModel] = useState<string>('deepseek-ai/deepseek-v4-pro');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
+  const [streamingMap, setStreamingMap] = useState<Record<string, boolean>>({});
   const [showRightSidebar, setShowRightSidebar] = useState<boolean>(false);
   const [showLeftSidebar, setShowLeftSidebar] = useState<boolean>(true);
   const [activeTurnIndex, setActiveTurnIndex] = useState<number>(0);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>('');
-  const activeRequestIdRef = useRef<string | null>(null);
+  const activeRequestIdRef = useRef<Record<string, string>>({});
   const chatBodyRef = useRef<HTMLDivElement>(null);
+
+  const isLoading = Boolean(loadingMap[activeId]);
+  const isStreaming = Boolean(streamingMap[activeId]);
 
   const toggleTheme = useCallback((): void => {
     setTheme((previousTheme) => (previousTheme === 'dark' ? 'light' : 'dark'));
@@ -35,7 +39,7 @@ export const App: React.FC = () => {
       id: '',
       title: 'New Chat',
       timestamp: '',
-      messages: [],
+      messages: [] as ChatMessage[],
     }),
     []
   );
@@ -94,87 +98,14 @@ export const App: React.FC = () => {
     prevIsLoadingRef.current = isLoading;
   }, [isLoading, currentConversation.messages]);
 
-  useEffect(() => {
-    if (!window.electronAPI) return;
 
-    const cleanupToken = window.electronAPI.onTokenChunk(({ requestId, chunk }) => {
-      setConversations((previous) =>
-        previous.map((conv) => {
-          const hasTargetMessage = conv.messages.some((m) => m.id === `msg-reply-${requestId}`);
-          if (!hasTargetMessage) return conv;
-
-          return {
-            ...conv,
-            messages: conv.messages.map((msg) => {
-              if (msg.id === `msg-reply-${requestId}`) {
-                return {
-                  ...msg,
-                  content: msg.content + chunk,
-                };
-              }
-              return msg;
-            }),
-          };
-        })
-      );
-    });
-
-    const cleanupComplete = window.electronAPI.onStreamComplete(({ requestId }) => {
-      if (activeRequestIdRef.current === requestId) {
-        setIsLoading(false);
-        setIsStreaming(false);
-        activeRequestIdRef.current = null;
-      }
-    });
-
-    const cleanupError = window.electronAPI.onStreamError(({ requestId, error }) => {
-      if (activeRequestIdRef.current === requestId) {
-        setIsLoading(false);
-        setIsStreaming(false);
-        activeRequestIdRef.current = null;
-      }
-
-      setConversations((previous) =>
-        previous.map((conv) => {
-          const hasTargetMessage = conv.messages.some((m) => m.id === `msg-reply-${requestId}`);
-          if (!hasTargetMessage) return conv;
-
-          return {
-            ...conv,
-            messages: conv.messages.map((msg) => {
-              if (msg.id === `msg-reply-${requestId}`) {
-                return {
-                  ...msg,
-                  content: msg.content
-                    ? `${msg.content}\n\n*[Stream Error: ${error}]*`
-                    : `Error connecting to AI Provider: ${error}`,
-                };
-              }
-              return msg;
-            }),
-          };
-        })
-      );
-    });
-
-    return () => {
-      cleanupToken();
-      cleanupComplete();
-      cleanupError();
-    };
-  }, []);
 
   const handleAbortStream = useCallback(async (): Promise<void> => {
-    if (activeRequestIdRef.current) {
-      const currentReqId = activeRequestIdRef.current;
-      if (window.electronAPI?.abortStream) {
-        await window.electronAPI.abortStream(currentReqId);
-      }
+    const currentReqId = activeRequestIdRef.current[activeId];
+    if (currentReqId) {
       setConversations((previous) =>
         previous.map((conv) => {
-          const hasTargetMessage = conv.messages.some((m) => m.id === `msg-reply-${currentReqId}`);
-          if (!hasTargetMessage) return conv;
-
+          if (conv.id !== activeId) return conv;
           return {
             ...conv,
             messages: conv.messages.map((msg) => {
@@ -189,15 +120,16 @@ export const App: React.FC = () => {
           };
         })
       );
-      setIsLoading(false);
-      setIsStreaming(false);
-      activeRequestIdRef.current = null;
+      delete activeRequestIdRef.current[activeId];
+      setLoadingMap((prev) => ({ ...prev, [activeId]: false }));
+      setStreamingMap((prev) => ({ ...prev, [activeId]: false }));
     }
-  }, []);
+  }, [activeId]);
 
   const handleSendMessage = useCallback(
     async (text: string): Promise<void> => {
       const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
       const userMsg: ChatMessage = {
         id: `msg-${Date.now()}`,
         role: 'user',
@@ -211,6 +143,9 @@ export const App: React.FC = () => {
         setActiveId(currentConvId);
       }
 
+      setLoadingMap((prev) => ({ ...prev, [currentConvId]: true }));
+      setStreamingMap((prev) => ({ ...prev, [currentConvId]: false }));
+
       const existingConv = conversations.find((c) => c.id === currentConvId);
       const existingMessages = existingConv ? existingConv.messages : [];
       const updatedHistory = [...existingMessages, userMsg];
@@ -221,7 +156,7 @@ export const App: React.FC = () => {
       }));
 
       const requestId = `req-${Date.now()}`;
-      activeRequestIdRef.current = requestId;
+      activeRequestIdRef.current[currentConvId] = requestId;
 
       const assistantMsg: ChatMessage = {
         id: `msg-reply-${requestId}`,
@@ -258,48 +193,78 @@ export const App: React.FC = () => {
       const newTurnIndex = updatedHistory.filter((m) => m.role === 'user').length - 1;
       setActiveTurnIndex(Math.max(0, newTurnIndex));
 
-      setIsLoading(true);
-      setIsStreaming(true);
-
       try {
-        if (window.electronAPI?.streamMessageToLLM) {
-          await window.electronAPI.streamMessageToLLM(requestId, apiPayload, selectedModel);
-        } else if (window.electronAPI?.sendMessageToLLM) {
-          const response = await window.electronAPI.sendMessageToLLM(apiPayload, selectedModel);
-          setConversations((previous) =>
-            previous.map((conv) => {
-              if (conv.id === currentConvId) {
-                return {
-                  ...conv,
-                  messages: conv.messages.map((m) =>
-                    m.id === `msg-reply-${requestId}` ? { ...m, content: response.message } : m
-                  ),
-                };
-              }
-              return conv;
-            })
-          );
-          setIsLoading(false);
-          setIsStreaming(false);
-        } else {
-          setConversations((previous) =>
-            previous.map((conv) => {
-              if (conv.id === currentConvId) {
-                return {
-                  ...conv,
-                  messages: conv.messages.map((m) =>
-                    m.id === `msg-reply-${requestId}`
-                      ? { ...m, content: 'Electron API bridge not available.' }
-                      : m
-                  ),
-                };
-              }
-              return conv;
-            })
-          );
-          setIsLoading(false);
-          setIsStreaming(false);
-        }
+        const modelObj = getModelById(selectedModel);
+        await streamLLMMessage(
+          requestId,
+          apiPayload,
+          selectedModel,
+          modelObj?.providerSlug,
+          {
+            onChunk: (chunk: string) => {
+              setLoadingMap((prev) => ({ ...prev, [currentConvId]: false }));
+              setStreamingMap((prev) => ({ ...prev, [currentConvId]: true }));
+              setConversations((previous) =>
+                previous.map((conv) => {
+                  if (conv.id === currentConvId) {
+                    const hasAssistantMsg = conv.messages.some((m) => m.id === `msg-reply-${requestId}`);
+                    if (!hasAssistantMsg) {
+                      return {
+                        ...conv,
+                        messages: [
+                          ...conv.messages,
+                          {
+                            id: `msg-reply-${requestId}`,
+                            role: 'assistant',
+                            content: chunk,
+                            timestamp,
+                          },
+                        ],
+                      };
+                    }
+                    return {
+                      ...conv,
+                      messages: conv.messages.map((m) =>
+                        m.id === `msg-reply-${requestId}` ? { ...m, content: m.content + chunk } : m
+                      ),
+                    };
+                  }
+                  return conv;
+                })
+              );
+            },
+            onComplete: () => {
+              setLoadingMap((prev) => ({ ...prev, [currentConvId]: false }));
+              setStreamingMap((prev) => ({ ...prev, [currentConvId]: false }));
+              delete activeRequestIdRef.current[currentConvId];
+            },
+            onError: (error: string) => {
+              setConversations((previous) =>
+                previous.map((conv) => {
+                  if (conv.id === currentConvId) {
+                    return {
+                      ...conv,
+                      messages: conv.messages.map((m) =>
+                        m.id === `msg-reply-${requestId}`
+                          ? {
+                              ...m,
+                              content: m.content
+                                ? `${m.content}\n\n*[Stream Error: ${error}]*`
+                                : `Error connecting to AI Provider: ${error}`,
+                            }
+                          : m
+                      ),
+                    };
+                  }
+                  return conv;
+                })
+              );
+              setLoadingMap((prev) => ({ ...prev, [currentConvId]: false }));
+              setStreamingMap((prev) => ({ ...prev, [currentConvId]: false }));
+              delete activeRequestIdRef.current[currentConvId];
+            },
+          }
+        );
       } catch (err: any) {
         setConversations((previous) =>
           previous.map((conv) => {
@@ -308,7 +273,10 @@ export const App: React.FC = () => {
                 ...conv,
                 messages: conv.messages.map((m) =>
                   m.id === `msg-reply-${requestId}`
-                    ? { ...m, content: `Error streaming message: ${err?.message || 'Unknown error'}` }
+                    ? {
+                        ...m,
+                        content: `Error connecting to AI Provider: ${err?.message || 'Connection failed'}`,
+                      }
                     : m
                 ),
               };
@@ -316,8 +284,9 @@ export const App: React.FC = () => {
             return conv;
           })
         );
-        setIsLoading(false);
-        setIsStreaming(false);
+        setLoadingMap((prev) => ({ ...prev, [currentConvId]: false }));
+        setStreamingMap((prev) => ({ ...prev, [currentConvId]: false }));
+        delete activeRequestIdRef.current[currentConvId];
       }
     },
     [activeId, conversations, selectedModel]
@@ -375,13 +344,6 @@ export const App: React.FC = () => {
       />
 
       <div className="main-content">
-        <Header
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          isLeftSidebarVisible={showLeftSidebar}
-          onToggleLeftSidebar={handleToggleLeftSidebar}
-        />
-
         <div className="main-workspace-area">
           <div className="chat-workspace-card">
             <ChatHeaderBar
@@ -391,12 +353,15 @@ export const App: React.FC = () => {
               onSelectTurn={handleSelectTurn}
               onToggleContents={handleToggleContents}
               hasMessages={currentConversation.messages.length > 0}
+              theme={theme}
+              onToggleTheme={toggleTheme}
             />
 
             <div className="chat-card-body" ref={chatBodyRef}>
               <MessageList
                 messages={currentConversation.messages}
                 isLoading={isLoading}
+                isStreaming={isStreaming}
                 onSelectPrompt={handleSendMessage}
               />
             </div>
@@ -405,8 +370,8 @@ export const App: React.FC = () => {
               onSendMessage={handleSendMessage}
               selectedModel={selectedModel}
               onSelectModel={setSelectedModel}
-              disabled={isLoading && !isStreaming}
-              isStreaming={isStreaming}
+              disabled={isLoading || isStreaming}
+              isStreaming={isLoading || isStreaming}
               onAbort={handleAbortStream}
             />
           </div>
