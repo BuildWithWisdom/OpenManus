@@ -204,9 +204,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* 1. Primary Navigation Rail (Far Left Icon Dock - ALWAYS VISIBLE) */}
       <nav className="primary-nav-rail">
         <div className="rail-top">
-          <div className="rail-logo-btn" title="Gohard">
-            <OpenManusLogo size={24} />
-          </div>
+          <button
+            className={`rail-logo-btn ${!isLeftSidebarVisible ? 'can-expand' : ''}`}
+            onClick={!isLeftSidebarVisible ? onToggleSidebar : undefined}
+            title={isLeftSidebarVisible ? 'Gohard' : 'Expand Sidebar'}
+            aria-label={isLeftSidebarVisible ? 'Gohard' : 'Expand Sidebar'}
+          >
+            <span className="logo-default">
+              <OpenManusLogo size={24} />
+            </span>
+            {!isLeftSidebarVisible && (
+              <span className="logo-hover-expand">
+                <PanelLeftClose size={19} />
+              </span>
+            )}
+          </button>
 
           <div className="rail-menu-items">
             <button
@@ -335,7 +347,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
 
                 <div className="sidebar-action-area">
-                  <button className="new-chat-btn" onClick={() => {}}>
+                  <button className="new-chat-btn" onClick={() => { }}>
                     <Plus size={18} />
                     <span>New Skill</span>
                   </button>
@@ -463,9 +475,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               {mod.lessons.map((les) => (
                                 <div
                                   key={les.id}
-                                  className={`chat-item ${
-                                    les.id === activeLessonId ? 'active' : ''
-                                  }`}
+                                  className={`chat-item ${les.id === activeLessonId ? 'active' : ''
+                                    }`}
                                   onClick={() => setActiveLessonId(les.id)}
                                 >
                                   <span className="chat-title">{les.title}</span>

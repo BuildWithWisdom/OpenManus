@@ -32,20 +32,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     let isMounted = true;
     const fetchModels = async () => {
       try {
-        let groups: ModelGroup[] | undefined;
-        if (window.electronAPI?.getAvailableModels) {
-          groups = await window.electronAPI.getAvailableModels();
-        } else if (window.electron?.ipcRenderer?.invoke) {
-          groups = await window.electron.ipcRenderer.invoke('chat:getAvailableModels');
-        }
-        if (isMounted && Array.isArray(groups) && groups.length > 0) {
-          setModelGroups(groups);
-          if (!selectedModel && groups[0]?.models?.[0]?.id) {
-            onSelectModel(groups[0].models[0].id);
+        const HONO_API_URL = import.meta.env.VITE_HONO_API_URL || 'http://localhost:8787';
+        const res = await fetch(`${HONO_API_URL}/api/chat/models`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && Array.isArray(data.modelGroups) && data.modelGroups.length > 0) {
+            setModelGroups(data.modelGroups);
           }
         }
       } catch (err) {
-        console.error('[Fetch Available Models Failed]:', err);
+        // Fall back to local MODEL_GROUPS from ../models
       }
     };
     fetchModels();
@@ -76,11 +72,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleSubmit = (): void => {
     if (!text.trim() || disabled) return;
-    onSendMessage(text.trim());
+    const submittedText = text.trim();
     setText('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
+    onSendMessage(submittedText);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {

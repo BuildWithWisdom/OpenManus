@@ -64,3 +64,11 @@ export const MODEL_GROUPS: ModelGroup[] = [
     ],
   },
 ];
+
+export const getAllModels = (): ModelOption[] => {
+  return MODEL_GROUPS.flatMap((group) => group.models);
+};
+
+export const getModelById = (id: string): ModelOption | undefined => {
+  return getAllModels().find((m) => m.id === id);
+};

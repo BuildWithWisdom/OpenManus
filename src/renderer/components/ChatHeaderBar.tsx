@@ -7,7 +7,12 @@ import {
   Download,
   Edit2,
   Trash2,
+  Sun,
+  Moon,
+  BookOpen,
+  Settings,
 } from 'lucide-react';
+import { ThemeMode } from '../types';
 
 export interface TurnItem {
   id: string;
@@ -22,6 +27,8 @@ interface ChatHeaderBarProps {
   onSelectTurn?: (turnIndex: number) => void;
   onToggleContents?: () => void;
   hasMessages?: boolean;
+  theme?: ThemeMode;
+  onToggleTheme?: () => void;
 }
 
 export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
@@ -31,6 +38,8 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
   onSelectTurn,
   onToggleContents,
   hasMessages = false,
+  theme = 'dark',
+  onToggleTheme,
 }) => {
   const [showTurnsDropdown, setShowTurnsDropdown] = useState<boolean>(false);
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
@@ -131,6 +140,25 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
             </div>
           )}
         </div>
+
+        {onToggleTheme && (
+          <button
+            className="chat-action-btn"
+            onClick={onToggleTheme}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle Theme"
+          >
+            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
+        )}
+
+        <button className="chat-action-btn" title="Documentation" aria-label="Documentation">
+          <BookOpen size={17} />
+        </button>
+
+        <button className="chat-action-btn" title="Settings" aria-label="Settings">
+          <Settings size={17} />
+        </button>
       </div>
     </div>
   );
