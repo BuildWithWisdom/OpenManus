@@ -14,9 +14,22 @@ export const App: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState<string>('deepseek-ai/deepseek-v4-pro');
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const [streamingMap, setStreamingMap] = useState<Record<string, boolean>>({});
+  const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 768);
   const [showRightSidebar, setShowRightSidebar] = useState<boolean>(false);
-  const [showLeftSidebar, setShowLeftSidebar] = useState<boolean>(true);
+  const [showLeftSidebar, setShowLeftSidebar] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth >= 768);
   const [activeTurnIndex, setActiveTurnIndex] = useState<number>(0);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobileState = window.innerWidth < 768;
+      setIsMobile(mobileState);
+      if (mobileState) {
+        setShowLeftSidebar(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>('');
@@ -319,20 +332,47 @@ export const App: React.FC = () => {
     return undefined;
   }, [currentConversation.messages, activeTurnIndex]);
 
-  const handleSelectHeading = useCallback((headingId: string): void => {
-    const elem = document.getElementById(headingId);
-    if (elem) {
-      elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+  const handleSelectHeading = useCallback(
+    (headingId: string): void => {
+      const elem = document.getElementById(headingId);
+      if (elem) {
+        elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      if (isMobile) {
+        setShowRightSidebar(false);
+      }
+    },
+    [isMobile]
+  );
+
+  const handleSelectConversation = useCallback(
+    (id: string) => {
+      setActiveId(id);
+      setActiveTurnIndex(0);
+      if (isMobile) {
+        setShowLeftSidebar(false);
+      }
+    },
+    [isMobile]
+  );
+
+  const handleCloseBackdrop = useCallback(() => {
+    setShowLeftSidebar(false);
+    setShowRightSidebar(false);
   }, []);
 
-  const handleSelectConversation = useCallback((id: string) => {
-    setActiveId(id);
-    setActiveTurnIndex(0);
-  }, []);
+  const isAnyDrawerOpenOnMobile = isMobile && (showLeftSidebar || showRightSidebar);
 
   return (
     <div className="app-layout" data-theme={theme}>
+      {isAnyDrawerOpenOnMobile && (
+        <div
+          className="mobile-drawer-backdrop"
+          onClick={handleCloseBackdrop}
+          aria-hidden="true"
+        />
+      )}
+
       <Sidebar
         conversations={conversations}
         activeId={activeId}
@@ -355,6 +395,8 @@ export const App: React.FC = () => {
               hasMessages={currentConversation.messages.length > 0}
               theme={theme}
               onToggleTheme={toggleTheme}
+              isLeftSidebarVisible={showLeftSidebar}
+              onToggleLeftSidebar={handleToggleLeftSidebar}
             />
 
             <div className="chat-card-body" ref={chatBodyRef}>
