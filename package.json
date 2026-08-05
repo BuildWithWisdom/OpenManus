@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "start": "electron-forge start",
+    "build": "vite build",
     "dev:web": "vite",
     "build:web": "vite build",
     "package": "electron-forge package",
