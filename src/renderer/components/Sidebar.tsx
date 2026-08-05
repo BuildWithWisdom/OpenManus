@@ -192,7 +192,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }));
   };
 
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const COMING_SOON_LABELS: Record<string, string> = {
+    learning: 'Courses',
+    docs: 'Documents',
+    tools: 'Tools',
+    plugins: 'Plugins',
+    help: 'Help & Settings',
+  };
+
+  const showComingSoonToast = (featureKey: string) => {
+    const label = COMING_SOON_LABELS[featureKey] || featureKey;
+    setToastMessage(`${label} are coming to Gohard soon`);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2500);
+  };
+
   const handleTabClick = (tab: 'chats' | 'learning' | 'docs' | 'tools' | 'plugins') => {
+    if (tab !== 'chats') {
+      showComingSoonToast(tab);
+      return;
+    }
     setActiveTab(tab);
     if (!isLeftSidebarVisible) {
       onToggleSidebar?.();
@@ -240,7 +262,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
 
             <button
-              className={`rail-icon-btn ${activeTab === 'docs' ? 'active' : ''}`}
+              className="rail-icon-btn"
               onClick={() => handleTabClick('docs')}
               title="Documents"
               aria-label="Documents"
@@ -249,7 +271,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
 
             <button
-              className={`rail-icon-btn ${activeTab === 'tools' ? 'active' : ''}`}
+              className="rail-icon-btn"
               onClick={() => handleTabClick('tools')}
               title="Tools"
               aria-label="Tools"
@@ -258,7 +280,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
 
             <button
-              className={`rail-icon-btn ${activeTab === 'plugins' ? 'active' : ''}`}
+              className="rail-icon-btn"
               onClick={() => handleTabClick('plugins')}
               title="Plugins"
               aria-label="Plugins"
@@ -269,7 +291,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="rail-bottom">
-          <button className="rail-icon-btn" title="Help & Settings" aria-label="Help">
+          <button
+            className="rail-icon-btn"
+            title="Help & Settings"
+            aria-label="Help"
+            onClick={() => showComingSoonToast('help')}
+          >
             <HelpCircle size={20} />
           </button>
         </div>
@@ -508,6 +535,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
       </aside>
+
+      {toastMessage && (
+        <div className="sidebar-toast">
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 };

@@ -325,7 +325,7 @@ export const App: React.FC = () => {
     }
     const targetUserMsg = userMsgs[activeTurnIndex] || userMsgs[userMsgs.length - 1];
     if (!targetUserMsg) return undefined;
-    const targetIdx = currentConversation.messages.indexOf(targetUserMsg);
+    const targetIdx = currentConversation.messages.findIndex((m) => m.id === targetUserMsg.id);
     if (targetIdx !== -1 && currentConversation.messages[targetIdx + 1]?.role === 'assistant') {
       return currentConversation.messages[targetIdx + 1];
     }
@@ -335,8 +335,13 @@ export const App: React.FC = () => {
   const handleSelectHeading = useCallback(
     (headingId: string): void => {
       const elem = document.getElementById(headingId);
-      if (elem) {
-        elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const scrollContainer = document.querySelector('.messages-container') as HTMLElement | null;
+      if (elem && scrollContainer) {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const elementRect = elem.getBoundingClientRect();
+        const headerOffset = 16;
+        const targetScrollTop = elementRect.top - containerRect.top + scrollContainer.scrollTop - headerOffset;
+        scrollContainer.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
       }
       if (isMobile) {
         setShowRightSidebar(false);
