@@ -1,4 +1,5 @@
 import { Context } from 'hono';
+import { env } from 'hono/adapter';
 import { buildSystemPrompt } from '../../prompts/promptBuilder';
 import { PersonaId } from '../../prompts/types';
 import { MODEL_GROUPS } from '../../models';
@@ -18,9 +19,10 @@ export interface StreamChatInput {
 
 export class ChatService {
   async handleStreamChat(c: Context<{ Bindings: Bindings }>, input: StreamChatInput) {
-    const accountId = c.env?.CLOUDFLARE_ACCOUNT_ID;
-    const apiToken = c.env?.CLOUDFLARE_API_TOKEN;
-    const gatewayId = c.env?.CLOUDFLARE_GATEWAY_ID || 'ai-engineer';
+    const environment = env<{ CLOUDFLARE_ACCOUNT_ID?: string; CLOUDFLARE_API_TOKEN?: string; CLOUDFLARE_GATEWAY_ID?: string }>(c);
+    const accountId = environment.CLOUDFLARE_ACCOUNT_ID;
+    const apiToken = environment.CLOUDFLARE_API_TOKEN;
+    const gatewayId = environment.CLOUDFLARE_GATEWAY_ID || 'ai-engineer';
 
     console.log('[Hono Server] Account ID:', accountId ? 'FOUND' : 'MISSING', 'API Token:', apiToken ? 'FOUND' : 'MISSING');
 

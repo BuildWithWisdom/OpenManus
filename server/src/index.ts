@@ -21,10 +21,9 @@ app.get('/health', (c) => {
 
 app.route('/api/chat', chatRouter);
 
-const port = Number(process.env.PORT) || 8787;
-if (typeof process !== 'undefined' && process.env.PORT) {
-  serve({ fetch: app.fetch, port });
-  console.log(`[Hono Node Server] Running on port ${port}`);
-}
+const port = Number(process.env.PORT) || 3000;
+serve({ fetch: app.fetch, port }, (info) => {
+  console.log(`[Hono Node Server] Running on port ${info.port}`);
+});
 
 export default app;

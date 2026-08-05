@@ -90,7 +90,7 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
             title="Open Sidebar"
             aria-label="Open Sidebar"
           >
-            <PanelLeft size={18} />
+            <PanelLeft size={20} />
           </button>
         )}
 
@@ -106,7 +106,7 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
             }}
           >
             <span className="chat-card-title">{hasMessages ? currentTurn.title : title}</span>
-            {!isDisabled && <ChevronDown size={14} className="chat-title-chevron" />}
+            {!isDisabled && <ChevronDown size={16} className="chat-title-chevron" />}
           </button>
 
           {showTurnsDropdown && !isDisabled && (
@@ -140,7 +140,7 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
           onClick={onToggleContents}
           aria-label="Toggle Contents"
         >
-          <SlidersHorizontal size={17} />
+          <SlidersHorizontal size={20} />
         </button>
 
         <div className="chat-more-dropdown-container" ref={moreMenuRef}>
@@ -153,34 +153,34 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
               setShowTurnsDropdown(false);
             }}
           >
-            <MoreHorizontal size={17} />
+            <MoreHorizontal size={20} />
           </button>
 
           {showMoreMenu && (
             <div className="chat-more-menu">
               <button type="button" className="chat-more-item" disabled={isDisabled}>
-                <Copy size={15} />
+                <Copy size={17} />
                 <span>Copy conversation</span>
               </button>
               <button type="button" className="chat-more-item" disabled={isDisabled}>
-                <Download size={15} />
+                <Download size={17} />
                 <span>Export chat</span>
               </button>
               <button type="button" className="chat-more-item" disabled={isDisabled}>
-                <Edit2 size={15} />
+                <Edit2 size={17} />
                 <span>Rename chat</span>
               </button>
               <button type="button" className="chat-more-item mobile-only-item">
-                <BookOpen size={15} />
+                <BookOpen size={17} />
                 <span>Documentation</span>
               </button>
               <button type="button" className="chat-more-item mobile-only-item">
-                <Settings size={15} />
+                <Settings size={17} />
                 <span>Settings</span>
               </button>
               <div className="chat-more-divider" />
               <button type="button" className="chat-more-item danger" disabled={isDisabled}>
-                <Trash2 size={15} />
+                <Trash2 size={17} />
                 <span>Delete chat</span>
               </button>
             </div>
@@ -194,16 +194,16 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             aria-label="Toggle Theme"
           >
-            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
           </button>
         )}
 
         <button className="chat-action-btn desktop-only-action" title="Documentation" aria-label="Documentation">
-          <BookOpen size={17} />
+          <BookOpen size={20} />
         </button>
 
         <button className="chat-action-btn desktop-only-action" title="Settings" aria-label="Settings">
-          <Settings size={17} />
+          <Settings size={20} />
         </button>
       </div>
     </div>

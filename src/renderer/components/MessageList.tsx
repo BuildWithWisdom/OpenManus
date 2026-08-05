@@ -615,6 +615,38 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       window.addEventListener('mouseup', handleGlobalMouseUp);
     };
 
+    const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        isDraggingRef.current = true;
+        setIsDragging(true);
+        dragStartRef.current = {
+          x: touch.clientX - panPosRef.current.x,
+          y: touch.clientY - panPosRef.current.y,
+        };
+      }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+      if (!isDraggingRef.current || e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const newX = touch.clientX - dragStartRef.current.x;
+      const newY = touch.clientY - dragStartRef.current.y;
+      panPosRef.current = { x: newX, y: newY };
+
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+      animFrameRef.current = requestAnimationFrame(() => {
+        updateTransform(newX, newY, diagramZoom);
+      });
+    };
+
+    const handleTouchEnd = () => {
+      isDraggingRef.current = false;
+      setIsDragging(false);
+    };
+
     const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
       if (e.ctrlKey || e.metaKey) {
         const delta = e.deltaY > 0 ? -0.15 : 0.15;
@@ -768,6 +800,9 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
               <div
                 className={`diagram-modal-body ${isDragging ? 'dragging' : ''}`}
                 onMouseDown={handleMouseDown}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
                 onDoubleClick={resetDiagramView}
                 onWheel={handleWheel}
               >

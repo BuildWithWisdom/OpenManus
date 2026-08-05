@@ -2,7 +2,7 @@
   "name": "server",
   "type": "module",
   "scripts": {
-    "start": "node src/index.ts",
+    "start": "tsx src/index.ts",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings"
@@ -11,9 +11,11 @@
     "@hono/node-server": "^1.13.8",
     "@hono/zod-validator": "^0.9.0",
     "hono": "^4.13.0",
+    "tsx": "^4.19.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@flydotio/dockerfile": "^0.7.10",
     "wrangler": "^4.110.0"
   }
 }
