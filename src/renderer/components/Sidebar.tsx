@@ -211,11 +211,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             aria-label={isLeftSidebarVisible ? 'Gohard' : 'Expand Sidebar'}
           >
             <span className="logo-default">
-              <OpenManusLogo size={24} />
+              <OpenManusLogo size={25} />
             </span>
             {!isLeftSidebarVisible && (
               <span className="logo-hover-expand">
-                <PanelLeftClose size={19} />
+                <PanelLeftClose size={20} />
               </span>
             )}
           </button>
@@ -227,7 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               title="Chats"
               aria-label="Chats"
             >
-              <Bot size={19} />
+              <Bot size={20} />
             </button>
 
             <button
@@ -236,7 +236,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               title="Learning & Skills"
               aria-label="Learning"
             >
-              <Brain size={19} />
+              <Brain size={20} />
             </button>
 
             <button
@@ -245,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               title="Documents"
               aria-label="Documents"
             >
-              <FileText size={19} />
+              <FileText size={20} />
             </button>
 
             <button
@@ -254,7 +254,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               title="Tools"
               aria-label="Tools"
             >
-              <Wrench size={19} />
+              <Wrench size={20} />
             </button>
 
             <button
@@ -263,14 +263,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               title="Plugins"
               aria-label="Plugins"
             >
-              <Plug size={19} />
+              <Plug size={20} />
             </button>
           </div>
         </div>
 
         <div className="rail-bottom">
           <button className="rail-icon-btn" title="Help & Settings" aria-label="Help">
-            <HelpCircle size={19} />
+            <HelpCircle size={20} />
           </button>
         </div>
       </nav>
@@ -287,13 +287,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 title="Collapse Sidebar"
                 onClick={onToggleSidebar}
               >
-                <PanelLeftClose size={18} />
+                <PanelLeftClose size={19} />
               </button>
             </div>
 
             <div className="sidebar-action-area">
               <button className="new-chat-btn" onClick={onNewChat}>
-                <Plus size={18} />
+                <Plus size={19} />
                 <span>New Chat</span>
               </button>
             </div>
@@ -302,7 +302,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="chats-header">
                 <span className="chats-title">CHATS</span>
                 <button className="search-btn" title="Search chats">
-                  <Search size={16} />
+                  <Search size={17} />
                 </button>
               </div>
 
@@ -313,14 +313,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     className={`chat-item ${chat.id === activeId ? 'active' : ''}`}
                     onClick={() => onSelectConversation(chat.id)}
                   >
-                    <Bot size={16} className="chat-icon" />
+                    <Bot size={17} className="chat-icon" />
                     <span className="chat-title">{chat.title}</span>
                     <button
                       className="chat-more-btn"
                       title="Options"
                       onClick={(event) => event.stopPropagation()}
                     >
-                      <MoreHorizontal size={16} />
+                      <MoreHorizontal size={17} />
                     </button>
                   </div>
                 ))}
@@ -503,7 +503,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="status-model">{getModelDisplayName(selectedModel)}</span>
             </div>
             <button className="status-settings-btn" title="Connection Settings">
-              <SlidersHorizontal size={18} />
+              <SlidersHorizontal size={19} />
             </button>
           </div>
         </div>

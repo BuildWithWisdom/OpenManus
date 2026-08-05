@@ -397,7 +397,7 @@ const MessageRow = React.memo<MessageRowProps>(
           <div className="assistant-message-wrapper">
             <div className="assistant-header-row">
               <div className="avatar-container">
-                <OpenManusLogo size={20} />
+                <OpenManusLogo size={21} />
               </div>
               <span className="assistant-name">Gohard</span>
               <span className="assistant-timestamp">{message.timestamp || '10:42 AM'}</span>
@@ -520,20 +520,20 @@ const MessageRow = React.memo<MessageRowProps>(
               {(!isLastAssistant || !isLoading) && message.content && (
                 <div className="message-action-bar">
                   <button className="action-icon-btn" title="Like response">
-                    <ThumbsUp size={15} />
+                    <ThumbsUp size={15.5} />
                   </button>
                   <button className="action-icon-btn" title="Dislike response">
-                    <ThumbsDown size={15} />
+                    <ThumbsDown size={15.5} />
                   </button>
                   <button
                     className="action-icon-btn"
                     title="Copy message"
                     onClick={() => onCopyMessage(message.id, message.content)}
                   >
-                    {copiedMsgId === message.id ? <Check size={15} /> : <Copy size={15} />}
+                    {copiedMsgId === message.id ? <Check size={15.5} /> : <Copy size={15.5} />}
                   </button>
                   <button className="action-icon-btn" title="Regenerate response">
-                    <RotateCw size={15} />
+                    <RotateCw size={15.5} />
                   </button>
                 </div>
               )}
@@ -557,6 +557,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     const panPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
     const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
     const isDraggingRef = useRef<boolean>(false);
+    const lastTouchTimeRef = useRef<number>(0);
     const animFrameRef = useRef<number | null>(null);
 
     const updateTransform = (x: number, y: number, zoom: number) => {
@@ -578,7 +579,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     }, [diagramZoom, expandedSvg]);
 
     const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || Date.now() - lastTouchTimeRef.current < 500) return;
       e.preventDefault();
       isDraggingRef.current = true;
       setIsDragging(true);
@@ -616,35 +617,45 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     };
 
     const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        isDraggingRef.current = true;
-        setIsDragging(true);
-        dragStartRef.current = {
-          x: touch.clientX - panPosRef.current.x,
-          y: touch.clientY - panPosRef.current.y,
-        };
-      }
-    };
-
-    const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-      if (!isDraggingRef.current || e.touches.length !== 1) return;
+      if (e.touches.length !== 1) return;
+      lastTouchTimeRef.current = Date.now();
+      isDraggingRef.current = true;
+      setIsDragging(true);
       const touch = e.touches[0];
-      const newX = touch.clientX - dragStartRef.current.x;
-      const newY = touch.clientY - dragStartRef.current.y;
-      panPosRef.current = { x: newX, y: newY };
+      dragStartRef.current = {
+        x: touch.clientX - panPosRef.current.x,
+        y: touch.clientY - panPosRef.current.y,
+      };
 
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current);
-      }
-      animFrameRef.current = requestAnimationFrame(() => {
-        updateTransform(newX, newY, diagramZoom);
-      });
-    };
+      const handleGlobalTouchMove = (moveEvent: TouchEvent) => {
+        if (!isDraggingRef.current || moveEvent.touches.length !== 1) return;
+        const touchItem = moveEvent.touches[0];
+        const newX = touchItem.clientX - dragStartRef.current.x;
+        const newY = touchItem.clientY - dragStartRef.current.y;
+        panPosRef.current = { x: newX, y: newY };
 
-    const handleTouchEnd = () => {
-      isDraggingRef.current = false;
-      setIsDragging(false);
+        if (animFrameRef.current) {
+          cancelAnimationFrame(animFrameRef.current);
+        }
+        animFrameRef.current = requestAnimationFrame(() => {
+          updateTransform(newX, newY, diagramZoom);
+        });
+      };
+
+      const handleGlobalTouchEnd = () => {
+        isDraggingRef.current = false;
+        setIsDragging(false);
+        if (animFrameRef.current) {
+          cancelAnimationFrame(animFrameRef.current);
+        }
+        window.removeEventListener('touchmove', handleGlobalTouchMove);
+        window.removeEventListener('touchend', handleGlobalTouchEnd);
+        window.removeEventListener('touchcancel', handleGlobalTouchEnd);
+      };
+
+      window.addEventListener('touchmove', handleGlobalTouchMove, { passive: true });
+      window.addEventListener('touchend', handleGlobalTouchEnd);
+      window.addEventListener('touchcancel', handleGlobalTouchEnd);
     };
 
     const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
@@ -801,8 +812,6 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                 className={`diagram-modal-body ${isDragging ? 'dragging' : ''}`}
                 onMouseDown={handleMouseDown}
                 onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
                 onDoubleClick={resetDiagramView}
                 onWheel={handleWheel}
               >

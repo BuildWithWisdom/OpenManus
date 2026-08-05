@@ -61,7 +61,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           <span className="section-title">Contents</span>
           {onClose && (
             <button className="section-close-btn" onClick={onClose} title="Close Panel">
-              <X size={15} />
+              <X size={16} />
             </button>
           )}
         </div>
@@ -94,7 +94,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         <div className="section-header-row">
           <span className="section-title">Thought process</span>
           <ChevronDown
-            size={15}
+            size={16}
             className={`section-chevron ${isThoughtExpanded ? 'expanded' : ''}`}
             onClick={() => setIsThoughtExpanded(!isThoughtExpanded)}
           />
@@ -105,7 +105,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           onClick={() => setIsThoughtExpanded(!isThoughtExpanded)}
         >
           <div className="thought-icon-box">
-            <Brain size={16} />
+            <Brain size={17} />
           </div>
           <div className="thought-info">
             <span className="thought-title">Thought process</span>
@@ -125,7 +125,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         <div className="related-links-list">
           <div className="related-card">
             <div className="related-icon-box">
-              <FileText size={16} />
+              <FileText size={17} />
             </div>
             <div className="related-info">
               <span className="related-title">Gohard Documentation</span>

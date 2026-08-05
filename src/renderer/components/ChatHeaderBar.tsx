@@ -90,7 +90,7 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
             title="Open Sidebar"
             aria-label="Open Sidebar"
           >
-            <PanelLeft size={20} />
+            <PanelLeft size={21} />
           </button>
         )}
 
@@ -140,7 +140,7 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
           onClick={onToggleContents}
           aria-label="Toggle Contents"
         >
-          <SlidersHorizontal size={20} />
+          <SlidersHorizontal size={21} />
         </button>
 
         <div className="chat-more-dropdown-container" ref={moreMenuRef}>
@@ -153,50 +153,39 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
               setShowTurnsDropdown(false);
             }}
           >
-            <MoreHorizontal size={20} />
+            <MoreHorizontal size={21} />
           </button>
 
           {showMoreMenu && (
             <div className="chat-more-menu">
               <button type="button" className="chat-more-item" disabled={isDisabled}>
-                <Copy size={17} />
+                <Copy size={18} />
                 <span>Copy conversation</span>
               </button>
               <button type="button" className="chat-more-item" disabled={isDisabled}>
-                <Download size={17} />
+                <Download size={18} />
                 <span>Export chat</span>
               </button>
               <button type="button" className="chat-more-item" disabled={isDisabled}>
-                <Edit2 size={17} />
+                <Edit2 size={18} />
                 <span>Rename chat</span>
               </button>
               <button type="button" className="chat-more-item mobile-only-item">
-                <BookOpen size={17} />
+                <BookOpen size={18} />
                 <span>Documentation</span>
               </button>
               <button type="button" className="chat-more-item mobile-only-item">
-                <Settings size={17} />
+                <Settings size={18} />
                 <span>Settings</span>
               </button>
               <div className="chat-more-divider" />
               <button type="button" className="chat-more-item danger" disabled={isDisabled}>
-                <Trash2 size={17} />
+                <Trash2 size={18} />
                 <span>Delete chat</span>
               </button>
             </div>
           )}
         </div>
-
-        {onToggleTheme && (
-          <button
-            className="chat-action-btn"
-            onClick={onToggleTheme}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-        )}
 
         <button className="chat-action-btn desktop-only-action" title="Documentation" aria-label="Documentation">
           <BookOpen size={20} />
