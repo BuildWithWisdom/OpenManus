@@ -1303,7 +1303,7 @@ body,
   outline: none;
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 16px;
   resize: none;
   max-height: 160px;
 }
@@ -3164,6 +3164,17 @@ body,
     min-width: 44px;
   }
 
+  .diagram-modal-overlay {
+    padding: 0 !important;
+  }
+
+  .diagram-modal-content {
+    width: 100vw !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
   .diagram-modal-title {
     display: none;
   }
@@ -3173,6 +3184,10 @@ body,
     padding: 12px 16px;
   }
 
+  .diagram-modal-body {
+    padding: 10px !important;
+  }
+
   .diagram-zoom-wrapper {
     will-change: transform;
     transform-origin: center center !important;
@@ -3180,7 +3195,7 @@ body,
 
   .diagram-modal-body svg {
     max-width: 100% !important;
-    max-height: 85vh !important;
+    max-height: 88vh !important;
     pointer-events: auto !important;
   }
 }

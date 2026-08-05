@@ -11,7 +11,7 @@ import './theme.css';
 
 export const App: React.FC = () => {
   const [theme, setTheme] = useState<ThemeMode>('dark');
-  const [selectedModel, setSelectedModel] = useState<string>('deepseek-ai/deepseek-v4-pro');
+  const [selectedModel, setSelectedModel] = useState<string>('nvidia/nemotron-3-nano-30b-a3b');
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const [streamingMap, setStreamingMap] = useState<Record<string, boolean>>({});
   const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 768);

@@ -40,13 +40,14 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     const uniqueItems: { id: string; label: string }[] = [];
 
     for (const match of matches) {
-      const text = (match[1] || match[0] || '').trim();
-      if (!text) continue;
-      const id = `heading-${slugify(text)}`;
+      const rawText = (match[1] || match[0] || '').trim();
+      const cleanText = rawText.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1');
+      if (!cleanText) continue;
+      const id = `heading-${slugify(cleanText)}`;
 
       if (!seenIds.has(id)) {
         seenIds.add(id);
-        uniqueItems.push({ id, label: text });
+        uniqueItems.push({ id, label: cleanText });
       }
     }
 
@@ -61,7 +62,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           <span className="section-title">Contents</span>
           {onClose && (
             <button className="section-close-btn" onClick={onClose} title="Close Panel">
-              <X size={16} />
+              <X size={17} />
             </button>
           )}
         </div>
@@ -94,7 +95,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         <div className="section-header-row">
           <span className="section-title">Thought process</span>
           <ChevronDown
-            size={16}
+            size={17}
             className={`section-chevron ${isThoughtExpanded ? 'expanded' : ''}`}
             onClick={() => setIsThoughtExpanded(!isThoughtExpanded)}
           />
@@ -105,7 +106,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           onClick={() => setIsThoughtExpanded(!isThoughtExpanded)}
         >
           <div className="thought-icon-box">
-            <Brain size={17} />
+            <Brain size={18} />
           </div>
           <div className="thought-info">
             <span className="thought-title">Thought process</span>
@@ -125,7 +126,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         <div className="related-links-list">
           <div className="related-card">
             <div className="related-icon-box">
-              <FileText size={17} />
+              <FileText size={18} />
             </div>
             <div className="related-info">
               <span className="related-title">Gohard Documentation</span>

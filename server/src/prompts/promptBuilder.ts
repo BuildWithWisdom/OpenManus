@@ -1,6 +1,10 @@
 import { PERSONAS } from './personas';
 import { PromptBuildOptions } from './types';
 
+const BASE_FORMATTING_RULES: string[] = [
+  'For detailed explanations, tutorials, or multi-step responses, structure the response with a brief intro paragraph (no heading), then use `##` for major sections, `###` for sub-sections, and `####` for granular details. Within sections, use bullet points, numbered lists, and lettered lists where appropriate to organize content. Never use `#` (H1). For casual conversation or short answers, respond naturally without headings.',
+];
+
 export function buildSystemPrompt(options: PromptBuildOptions = {}): string {
   const selectedPersonaId = options.personaId && PERSONAS[options.personaId] ? options.personaId : 'default';
   const persona = PERSONAS[selectedPersonaId];
@@ -13,8 +17,9 @@ export function buildSystemPrompt(options: PromptBuildOptions = {}): string {
     `<core_principles>\n${persona.corePrinciples.map((rule) => `- ${rule}`).join('\n')}\n</core_principles>`
   );
 
+  const allFormattingRules = [...BASE_FORMATTING_RULES, ...persona.formattingRules];
   sections.push(
-    `<formatting_rules>\n${persona.formattingRules.map((rule) => `- ${rule}`).join('\n')}\n</formatting_rules>`
+    `<formatting_rules>\n${allFormattingRules.map((rule) => `- ${rule}`).join('\n')}\n</formatting_rules>`
   );
 
   sections.push(

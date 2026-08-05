@@ -397,7 +397,7 @@ const MessageRow = React.memo<MessageRowProps>(
           <div className="assistant-message-wrapper">
             <div className="assistant-header-row">
               <div className="avatar-container">
-                <OpenManusLogo size={21} />
+                <OpenManusLogo size={22} />
               </div>
               <span className="assistant-name">Gohard</span>
               <span className="assistant-timestamp">{message.timestamp || '10:42 AM'}</span>
