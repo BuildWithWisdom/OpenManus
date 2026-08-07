@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { ChatHeaderBar, TurnItem } from './components/ChatHeaderBar';
 import { RightSidebar } from './components/RightSidebar';
@@ -32,7 +33,14 @@ export const App: React.FC = () => {
   }, []);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeId, setActiveId] = useState<string>('');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const activeId = useMemo(() => {
+    const match = location.pathname.match(/^\/chat\/(.+)$/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }, [location.pathname]);
+
   const activeRequestIdRef = useRef<Record<string, string>>({});
   const chatBodyRef = useRef<HTMLDivElement>(null);
 
@@ -57,7 +65,21 @@ export const App: React.FC = () => {
     []
   );
 
-  const currentConversation = conversations.find((c) => c.id === activeId) || conversations[0] || defaultEmptyConv;
+  const currentConversation = useMemo(() => {
+    if (!activeId) {
+      return defaultEmptyConv;
+    }
+    const found = conversations.find((c) => c.id === activeId);
+    if (found) {
+      return found;
+    }
+    return {
+      id: activeId,
+      title: 'New Chat',
+      timestamp: '',
+      messages: [] as ChatMessage[],
+    };
+  }, [activeId, conversations, defaultEmptyConv]);
 
   const turns = useMemo<TurnItem[]>(() => {
     const userMsgs = currentConversation.messages.filter((m) => m.role === 'user');
@@ -151,9 +173,10 @@ export const App: React.FC = () => {
       };
 
       let currentConvId = activeId;
-      if (!currentConvId) {
-        currentConvId = `conv-${Date.now()}`;
-        setActiveId(currentConvId);
+      const isNewChat = !currentConvId;
+      if (isNewChat) {
+        currentConvId = `conv-${crypto.randomUUID()}`;
+        navigate(`/chat/${currentConvId}`, { replace: true });
       }
 
       setLoadingMap((prev) => ({ ...prev, [currentConvId]: true }));
@@ -302,21 +325,16 @@ export const App: React.FC = () => {
         delete activeRequestIdRef.current[currentConvId];
       }
     },
-    [activeId, conversations, selectedModel]
+    [activeId, conversations, selectedModel, navigate]
   );
 
   const handleNewChat = useCallback((): void => {
-    const newConvId = `conv-${Date.now()}`;
-    const newConv: Conversation = {
-      id: newConvId,
-      title: 'New Chat',
-      timestamp: 'Just now',
-      messages: [],
-    };
-    setConversations((previous) => [newConv, ...previous]);
-    setActiveId(newConvId);
+    navigate('/');
     setActiveTurnIndex(0);
-  }, []);
+    if (isMobile) {
+      setShowLeftSidebar(false);
+    }
+  }, [navigate, isMobile]);
 
   const activeTurnAssistantMessage = useMemo(() => {
     const userMsgs = currentConversation.messages.filter((m) => m.role === 'user');
@@ -352,13 +370,13 @@ export const App: React.FC = () => {
 
   const handleSelectConversation = useCallback(
     (id: string) => {
-      setActiveId(id);
+      navigate(`/chat/${id}`);
       setActiveTurnIndex(0);
       if (isMobile) {
         setShowLeftSidebar(false);
       }
     },
-    [isMobile]
+    [navigate, isMobile]
   );
 
   const handleCloseBackdrop = useCallback(() => {
