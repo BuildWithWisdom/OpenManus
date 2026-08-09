@@ -64,7 +64,18 @@ const ThoughtCard: React.FC<{ thinking: string; isStillThinking: boolean }> = ({
             transition: 'transform 0.15s ease',
           }}
         />
-        <span>{isStillThinking ? 'Thinking...' : 'Thought Process'}</span>
+        {isStillThinking ? (
+          <span>
+            Thinking
+            <span className="thinking-dots">
+              <span className="thinking-dot">.</span>
+              <span className="thinking-dot">.</span>
+              <span className="thinking-dot">.</span>
+            </span>
+          </span>
+        ) : (
+          <span>Thought Process</span>
+        )}
       </div>
 
       {isExpanded && (
