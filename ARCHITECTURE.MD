@@ -56,3 +56,14 @@ Living architecture document for the AI Engineering course project.
 - Polish status card footer in `Sidebar.tsx` with clean model titles and vertically centered green connection indicator dot.
 
 ---
+
+### Module 6 — Gohard Memory Engine (Phases 1–6 Completed & Verified)
+
+- **Phase 1 & 2**: Created core memory layers (`LearnerMemory`, `TeachingStrategyMemory`, `CourseMemory`, `SessionMemory`, `KnowledgeMemory`) in [types.ts](file:///home/aguowisdom/Projects/OpenManus/server/src/modules/memory/types.ts).
+- **Phase 3**: Configured Prisma schema and connected to NeonDB PostgreSQL database with active `pgvector` extension.
+- **Phase 4**: Built `AnalystEngine` ([analystEngine.ts](file:///home/aguowisdom/Projects/OpenManus/server/src/modules/memory/analystEngine.ts)) implementing background structured memory extraction via Zod schema (`MemoryExtractionSchema`).
+- **Phase 5**: Implemented native `pgvector` vector store ([semanticStore.ts](file:///home/aguowisdom/Projects/OpenManus/server/src/modules/memory/semanticStore.ts)) generating 384-dimensional embeddings via Cloudflare AI Gateway (`@cf/baai/bge-small-en-v1.5`) with native PostgreSQL `<=>` cosine distance similarity search.
+- **Architecture Streamlining**: Streamlined memory models — removed global strengths/weaknesses and redundant `courseMisconceptions` array; isolated `courseGoal` per course ID; tracked active practice topics cleanly in `courseWeaknesses` and mastered topics in `masteredConcepts`.
+- **Phase 6**: Integrated adaptive teaching loop into [chat.service.ts](file:///home/aguowisdom/Projects/OpenManus/server/src/modules/chat/chat.service.ts) and [promptBuilder.ts](file:///home/aguowisdom/Projects/OpenManus/server/src/prompts/promptBuilder.ts). Automated system prompt injection of `<learner_memory_context>` tags containing `<learner_profile>`, `<teaching_strategy>`, `<course_context>`, and vector-matched `<semantic_past_explanations>`. Tested and verified 100% passing in [testAdaptiveLoop.ts](file:///home/aguowisdom/Projects/OpenManus/server/src/modules/memory/testAdaptiveLoop.ts).
+
+

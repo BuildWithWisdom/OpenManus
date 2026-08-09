@@ -1,0 +1,163 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String                   @id @default(uuid())
+  email            String                   @unique
+  name             String
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  courses          Course[]
+  conversations    Conversation[]
+  learnerMemory    LearnerMemory?
+  teachingStrategy TeachingStrategyMemory?
+  sessionStates    SessionState[]
+  semanticMemories SemanticMemory[]
+}
+
+model Course {
+  id           String         @id @default(uuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  description  String
+  isCompleted  Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  modules      CourseModule[]
+  courseMemory CourseMemory?
+  semanticMemories SemanticMemory[]
+}
+
+model CourseModule {
+  id          String         @id @default(uuid())
+  courseId    String
+  course      Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  moduleOrder Int
+  isCompleted Boolean        @default(false)
+  lessons     ModuleLesson[]
+}
+
+model ModuleLesson {
+  id              String       @id @default(uuid())
+  moduleId        String
+  module          CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title           String
+  contentMarkdown String
+  lessonOrder     Int
+  isCompleted     Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  modelId   String
+  createdAt DateTime  @default(now())
+  messages  Message[]
+  semanticMemories SemanticMemory[]
+}
+
+model Message {
+  id               String       @id @default(uuid())
+  conversationId   String
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role             String
+  content          String
+  reasoningContent String?
+  createdAt        DateTime     @default(now())
+  semanticMemories SemanticMemory[]
+}
+
+model LearnerMemory {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  knowledgeLevel  String   @default("beginner")
+  learningPace    String   @default("moderate")
+  confidenceScore Float    @default(0.5)
+  updatedAt       DateTime @updatedAt
+}
+
+model CourseMemory {
+  id               String   @id @default(uuid())
+  courseId         String   @unique
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseGoal       String?
+  masteredConcepts String[]
+  courseWeaknesses String[]
+  updatedAt        DateTime @updatedAt
+}
+
+model TeachingStrategyMemory {
+  id                               String   @id @default(uuid())
+  userId                           String   @unique
+  user                             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  learningApproach                 String   @default("balanced")
+  explanationStyle                 String   @default("analogy_driven")
+  assessmentFrequency              String   @default("periodic_milestones")
+  socraticQuestioningEffectiveness Float    @default(0.5)
+  preferredFormat                  String   @default("mixed")
+  observedPedagogicalSignals      String[]
+  updatedAt                        DateTime @updatedAt
+}
+
+model SessionState {
+  id                    String   @id @default(uuid())
+  sessionId             String   @unique
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeCourseId        String?
+  activeLessonId        String?
+  temporaryObservations String[]
+  expiresAt             DateTime
+}
+
+model KnowledgeMemory {
+  id              String   @id @default(uuid())
+  category        String
+  title           String
+  contentMarkdown String
+  createdAt       DateTime @default(now())
+}
+
+enum MemoryCategory {
+  EXPLANATION
+  LESSON_SUMMARY
+  STUDENT_REFLECTION
+  QA_PAIR
+}
+
+model SemanticMemory {
+  id             String                   @id @default(uuid())
+  userId         String
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId       String?
+  course         Course?                  @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  conversationId String?
+  conversation   Conversation?            @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  messageId      String?
+  message        Message?                 @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  category       MemoryCategory           @default(EXPLANATION)
+  concept        String
+  content        String
+  embedding      Unsupported("vector(384)")
+  metadata       Json?
+
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@index([userId, category])
+  @@index([userId, concept])
+  @@index([courseId])
+}
+
