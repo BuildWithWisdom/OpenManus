@@ -12,4 +12,5 @@ export interface PromptPersona {
 export interface PromptBuildOptions {
   personaId?: PersonaId;
   additionalContext?: string;
+  memoryContext?: string;
 }

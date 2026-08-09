@@ -4,6 +4,8 @@ import { buildSystemPrompt } from '../../prompts/promptBuilder';
 import { PersonaId } from '../../prompts/types';
 import { MODEL_GROUPS } from '../../models';
 import { Bindings } from '../../types';
+import { analystEngine } from '../memory/analystEngine';
+import { memoryManager } from '../memory/memoryManager';
 
 export interface ChatMessagePayload {
   role: 'user' | 'assistant' | 'system';
@@ -15,23 +17,25 @@ export interface StreamChatInput {
   modelName?: string;
   providerSlug?: string;
   personaId?: PersonaId;
+  userId?: string;
+  courseId?: string;
 }
 
 export class ChatService {
   async handleStreamChat(c: Context<{ Bindings: Bindings }>, input: StreamChatInput) {
     const environment = env<{ CLOUDFLARE_ACCOUNT_ID?: string; CLOUDFLARE_API_TOKEN?: string; CLOUDFLARE_GATEWAY_ID?: string }>(c);
-    const accountId = environment.CLOUDFLARE_ACCOUNT_ID;
-    const apiToken = environment.CLOUDFLARE_API_TOKEN;
-    const gatewayId = environment.CLOUDFLARE_GATEWAY_ID || 'ai-engineer';
+    const accountId = environment.CLOUDFLARE_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID;
+    const apiToken = environment.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN;
+    const gatewayId = environment.CLOUDFLARE_GATEWAY_ID || process.env.CLOUDFLARE_GATEWAY_ID || 'ai-engineer';
 
     console.log('[Hono Server] Account ID:', accountId ? 'FOUND' : 'MISSING', 'API Token:', apiToken ? 'FOUND' : 'MISSING');
 
     if (!accountId || !apiToken) {
-      console.error('[Hono Server Error] Missing Cloudflare API credentials in c.env!');
+      console.error('[Hono Server Error] Missing Cloudflare API credentials in environment!');
       return c.json(
         {
           error:
-            'Missing Cloudflare API credentials. Please set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in server configuration or .dev.vars file.',
+            'Missing Cloudflare API credentials. Please set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in server configuration or .env file.',
         },
         500
       );
@@ -44,7 +48,25 @@ export class ChatService {
 
     console.log('[Hono Server] Incoming chat request:', { selectedModel, resolvedProviderSlug, messageCount: input.messages.length });
 
-    const systemPrompt = buildSystemPrompt({ personaId: input.personaId });
+    const lastUserMessage = input.messages.filter((m) => m.role === 'user').pop()?.content || '';
+    const userId = input.userId || 'user-default';
+    const courseId = input.courseId;
+
+    let memoryContext = '';
+    try {
+      memoryContext = await memoryManager.buildMemoryContext({
+        userId,
+        courseId,
+        query: lastUserMessage,
+      });
+    } catch (err) {
+      console.warn('[Hono Server] Failed to build memory context, falling back to empty context:', err);
+    }
+
+    const systemPrompt = buildSystemPrompt({
+      personaId: input.personaId,
+      memoryContext: memoryContext || undefined,
+    });
     const sanitizedMessages = input.messages
       .filter((msg) => msg.content && msg.content.trim().length > 0)
       .map((msg) => ({
@@ -89,6 +111,25 @@ export class ChatService {
       const upstreamReader = fetchResponse.body.getReader();
       const decoder = new TextDecoder();
 
+      const lastUserMessage = input.messages.filter((m) => m.role === 'user').pop()?.content || '';
+      const userId = input.userId || 'user-default';
+      const courseId = input.courseId;
+      let accumulatedAssistantText = '';
+
+      const triggerBackgroundMemoryExtraction = () => {
+        if (!lastUserMessage || !accumulatedAssistantText) return;
+        analystEngine
+          .extractAndApplyMemory({
+            userId,
+            courseId,
+            userMessage: lastUserMessage,
+            assistantResponse: accumulatedAssistantText,
+            modelName: selectedModel,
+            providerSlug: resolvedProviderSlug,
+          })
+          .catch((err) => console.error('[Hono Server] Background memory analysis error:', err));
+      };
+
       const readable = new ReadableStream({
         async pull(controller) {
           let buffer = '';
@@ -97,6 +138,7 @@ export class ChatService {
               const { done, value } = await upstreamReader.read();
               if (done) {
                 controller.close();
+                triggerBackgroundMemoryExtraction();
                 return;
               }
 
@@ -110,6 +152,7 @@ export class ChatService {
                 if (!trimmed.startsWith('data:')) continue;
                 if (trimmed === 'data: [DONE]') {
                   controller.close();
+                  triggerBackgroundMemoryExtraction();
                   return;
                 }
 
@@ -127,6 +170,7 @@ export class ChatService {
                     controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
                   }
                   if (contentChunk) {
+                    accumulatedAssistantText += contentChunk;
                     const payload = JSON.stringify({ choices: [{ delta: { content: contentChunk } }] });
                     controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
                   }

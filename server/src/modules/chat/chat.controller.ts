@@ -12,13 +12,14 @@ export const streamChatSchema = z.object({
   ),
   modelName: z.string().optional(),
   providerSlug: z.string().optional(),
-  personaId: z.enum(['default', 'coding_architect', 'concise_executive']).optional(),
+  personaId: z.string().optional(),
+  userId: z.string().optional(),
+  courseId: z.string().optional(),
 });
 
 export class ChatController {
   async handleStreamChat(c: Context<{ Bindings: Bindings }>) {
-    const payload = await c.req.json();
-    const validated = streamChatSchema.parse(payload);
+    const validated = c.req.valid('json' as never) || (await c.req.json());
     return chatService.handleStreamChat(c, validated as any);
   }
 }
