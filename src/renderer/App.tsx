@@ -416,12 +416,13 @@ export const App: React.FC = () => {
       setActiveCourseId(courseId);
       setActiveLessonId(lessonId);
       setActiveTab('learning');
+      setActiveLessonMarkdown(lessonCache[lessonId] || '');
       navigate(`/course/${courseId}/lesson/${lessonId}`);
       if (isMobile) {
         setShowLeftSidebar(false);
       }
     },
-    [navigate, isMobile]
+    [navigate, isMobile, lessonCache]
   );
 
   const handleCourseCreated = useCallback(
@@ -548,7 +549,7 @@ export const App: React.FC = () => {
               onToggleContents={handleToggleContents}
               hasMessages={
                 activeTab === 'learning' && activeLessonId
-                  ? Boolean(activeLessonMarkdown)
+                  ? Boolean(activeLessonMarkdown || (activeLessonId && lessonCache[activeLessonId]) || activeLessonMeta?.hasContent)
                   : currentConversation.messages.length > 0
               }
               theme={theme}

@@ -386,18 +386,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         {/* Footer */}
-        <div className="sidebar-footer">
-          <div className="status-card">
-            <span className="status-dot" />
-            <div className="status-info">
-              <span className="status-label">Connected</span>
-              <span className="status-model">{getModelDisplayName(selectedModel)}</span>
-            </div>
-            <button className="status-settings-btn" title="Connection Settings">
-              <SlidersHorizontal size={19} />
-            </button>
-          </div>
-        </div>
       </aside>
 
       {toastMessage && (

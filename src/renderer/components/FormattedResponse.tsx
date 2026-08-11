@@ -406,10 +406,9 @@ export const FormattedResponse: React.FC<FormattedResponseProps> = React.memo(({
   const handleExpand = (svg: string) => {
     if (onExpandMermaid) {
       onExpandMermaid(svg);
-    } else {
-      setInternalExpandedSvg(svg);
-      resetDiagramView();
     }
+    setInternalExpandedSvg(svg);
+    resetDiagramView();
   };
 
   const cleanContent = useMemo(() => {
@@ -519,10 +518,7 @@ export const FormattedResponse: React.FC<FormattedResponseProps> = React.memo(({
       {internalExpandedSvg && (
         <div
           className="diagram-modal-overlay"
-          onClick={() => {
-            setInternalExpandedSvg(null);
-            resetDiagramView();
-          }}
+          onClick={() => setInternalExpandedSvg(null)}
         >
           <div className="diagram-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="diagram-modal-header">
@@ -555,10 +551,7 @@ export const FormattedResponse: React.FC<FormattedResponseProps> = React.memo(({
                 <div className="diagram-divider" />
                 <button
                   className="diagram-modal-close-btn"
-                  onClick={() => {
-                    setInternalExpandedSvg(null);
-                    resetDiagramView();
-                  }}
+                  onClick={() => setInternalExpandedSvg(null)}
                   title="Close (Esc)"
                 >
                   <X size={18} />

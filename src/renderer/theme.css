@@ -1065,25 +1065,25 @@ body,
   background-color: #06080b;
 }
 
-/* Main Workspace Area holding two separate floating cards */
+/* Main Workspace Area holding workspace */
 .main-workspace-area {
   display: flex;
   flex: 1;
-  gap: 14px;
-  padding: 12px 16px 12px 12px;
+  gap: 0;
+  padding: 0;
   overflow: hidden;
 }
 
-/* Floating Chat Card (Left Card) */
+/* Chat Workspace Card (Full-Bleed Main View) */
 .chat-workspace-card {
   flex: 1;
-  background-color: #0e1217;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  background-color: var(--bg-main, #0e1217);
+  border: none;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: none;
 }
 
 .chat-card-header {
@@ -1756,7 +1756,6 @@ body,
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  contain: layout style;
 }
 
 .messages-bottom-spacer {
@@ -2081,19 +2080,20 @@ body,
   overflow: hidden;
 }
 
-/* Standalone Floating Right Sidebar Card (Right Card) */
+/* Right Sidebar Container (Edge-to-Edge Sidebar) */
 .right-sidebar-container {
   width: 260px;
-  background-color: #0e1217;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  background-color: var(--bg-sidebar, #0e1217);
+  border: none;
+  border-left: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 0;
   padding: 20px 16px;
   display: flex;
   flex-direction: column;
   gap: 24px;
   overflow-y: auto;
   flex-shrink: 0;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: none;
 }
 
 .right-sidebar-container.hidden {
@@ -2611,7 +2611,7 @@ body,
   overflow: hidden !important;
   display: flex;
   justify-content: center;
-  align-items: flex-start !important;
+  align-items: center !important;
   cursor: grab;
   user-select: none;
   touch-action: none;
@@ -2625,10 +2625,10 @@ body,
 .diagram-zoom-wrapper {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   min-width: max-content;
   width: 100%;
-  transform-origin: top center !important;
+  transform-origin: center center !important;
 }
 
 .diagram-modal-body svg {

@@ -52,7 +52,7 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
   const turnsMenuRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
-  const isDisabled = !hasMessages;
+  const isDisabled = !hasMessages && turns.length === 0;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
