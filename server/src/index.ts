@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import { chatRouter } from './modules/chat/chat.routes';
+import { courseRouter } from './modules/course/course.routes';
 import { Bindings } from './types';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -21,6 +22,7 @@ app.get('/health', (c) => {
 });
 
 app.route('/api/chat', chatRouter);
+app.route('/api/courses', courseRouter);
 
 const port = Number(process.env.PORT) || 3000;
 serve({ fetch: app.fetch, port }, (info) => {

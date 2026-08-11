@@ -8,6 +8,7 @@ import mermaid from 'mermaid';
 import OpenManusLogo from '../assets/OpenManusLogo';
 import { WelcomeState } from './WelcomeState';
 import { ChatMessage } from '../types';
+import { FormattedResponse } from './FormattedResponse';
 
 export interface ParsedMessageContent {
   thinking: string | null;
@@ -201,11 +202,11 @@ mermaid.initialize({
     background: 'transparent',
     primaryColor: '#161b22',
     primaryTextColor: '#ffffff',
-    primaryBorderColor: '#10b981',
+    primaryBorderColor: '#22c55e',
     lineColor: '#64748b',
     secondaryColor: '#2563eb',
     tertiaryColor: '#f59e0b',
-    nodeBorder: '#10b981',
+    nodeBorder: '#22c55e',
     clusterBkg: '#11161d',
     clusterBorder: 'rgba(255, 255, 255, 0.15)',
     titleColor: '#ffffff',
@@ -387,11 +388,10 @@ interface MessageRowProps {
   isLoading?: boolean;
   copiedMsgId: string | null;
   onCopyMessage: (id: string, text: string) => void;
-  onExpandMermaid: (svg: string) => void;
 }
 
 const MessageRow = React.memo<MessageRowProps>(
-  ({ message, currentTurnIndex, isLastAssistant, isLoading, copiedMsgId, onCopyMessage, onExpandMermaid }) => {
+  ({ message, currentTurnIndex, isLastAssistant, isLoading, copiedMsgId, onCopyMessage }) => {
     return (
       <div
         id={message.role === 'user' ? `turn-${currentTurnIndex}` : undefined}
@@ -427,91 +427,7 @@ const MessageRow = React.memo<MessageRowProps>(
                         />
                       )}
                       {parsed.mainContent ? (
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            h1({ children }) {
-                              const textStr = Array.isArray(children) ? children.join('') : String(children);
-                              const id = `heading-${slugify(textStr)}`;
-                              return <h1 id={id} className="md-heading md-h1">{children}</h1>;
-                            },
-                            h2({ children }) {
-                              const textStr = Array.isArray(children) ? children.join('') : String(children);
-                              const id = `heading-${slugify(textStr)}`;
-                              return <h2 id={id} className="md-heading md-h2">{children}</h2>;
-                            },
-                            h3({ children }) {
-                              const textStr = Array.isArray(children) ? children.join('') : String(children);
-                              const id = `heading-${slugify(textStr)}`;
-                              return <h3 id={id} className="md-heading md-h3">{children}</h3>;
-                            },
-                            p({ children }) {
-                              return <p className="md-paragraph">{children}</p>;
-                            },
-                            ul({ children }) {
-                              return <ul className="md-list md-ul">{children}</ul>;
-                            },
-                            ol({ children }) {
-                              return <ol className="md-list md-ol">{children}</ol>;
-                            },
-                            li({ children }) {
-                              return <li className="md-list-item">{children}</li>;
-                            },
-                            strong({ children }) {
-                              return <strong className="md-strong">{children}</strong>;
-                            },
-                            hr() {
-                              return <hr className="content-divider" />;
-                            },
-                            table({ children }) {
-                              return (
-                                <div className="md-table-wrapper">
-                                  <table className="md-table">{children}</table>
-                                </div>
-                              );
-                            },
-                            thead({ children }) {
-                              return <thead className="md-thead">{children}</thead>;
-                            },
-                            tbody({ children }) {
-                              return <tbody className="md-tbody">{children}</tbody>;
-                            },
-                            tr({ children }) {
-                              return <tr className="md-tr">{children}</tr>;
-                            },
-                            th({ children }) {
-                              return <th className="md-th">{children}</th>;
-                            },
-                            td({ children }) {
-                              return <td className="md-td">{children}</td>;
-                            },
-                            code({ inline, className, children, ...props }: any) {
-                              const match = /language-(\w+)/.exec(className || '');
-                              const codeString = String(children).replace(/\n$/, '');
-                              const lang = match ? match[1].toLowerCase() : '';
-
-                              if (!inline && lang === 'mermaid') {
-                                return <MermaidDiagram chart={codeString} onExpand={onExpandMermaid} />;
-                              }
-
-                              if (!inline && match) {
-                                return <CodeBlock language={match[1]} value={codeString} />;
-                              }
-
-                              if (!inline && codeString.includes('\n')) {
-                                return <CodeBlock language="typescript" value={codeString} />;
-                              }
-
-                              return (
-                                <code className="inline-code" {...props}>
-                                  {children}
-                                </code>
-                              );
-                            },
-                          }}
-                        >
-                          {parsed.mainContent}
-                        </ReactMarkdown>
+                        <FormattedResponse content={parsed.mainContent} />
                       ) : (isLastAssistant && isLoading) ? (
                         <div className="message-bubble loading">
                           <span className="dot" />
@@ -559,128 +475,7 @@ const MessageRow = React.memo<MessageRowProps>(
 export const MessageList: React.FC<MessageListProps> = React.memo(
   ({ messages, isLoading, isStreaming, onSelectPrompt }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const zoomWrapperRef = useRef<HTMLDivElement>(null);
     const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
-    const [expandedSvg, setExpandedSvg] = useState<string | null>(null);
-    const [diagramZoom, setDiagramZoom] = useState<number>(1);
-    const [isDragging, setIsDragging] = useState<boolean>(false);
-
-    const panPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-    const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-    const isDraggingRef = useRef<boolean>(false);
-    const lastTouchTimeRef = useRef<number>(0);
-    const animFrameRef = useRef<number | null>(null);
-
-    const updateTransform = (x: number, y: number, zoom: number) => {
-      if (zoomWrapperRef.current) {
-        zoomWrapperRef.current.style.transform = `translate3d(${x}px, ${y}px, 0px) scale(${zoom})`;
-      }
-    };
-
-    const resetDiagramView = () => {
-      setDiagramZoom(1);
-      panPosRef.current = { x: 0, y: 0 };
-      updateTransform(0, 0, 1);
-    };
-
-    useEffect(() => {
-      if (expandedSvg) {
-        updateTransform(panPosRef.current.x, panPosRef.current.y, diagramZoom);
-      }
-    }, [diagramZoom, expandedSvg]);
-
-    const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-      if (e.button !== 0 || Date.now() - lastTouchTimeRef.current < 500) return;
-      e.preventDefault();
-      isDraggingRef.current = true;
-      setIsDragging(true);
-      dragStartRef.current = {
-        x: e.clientX - panPosRef.current.x,
-        y: e.clientY - panPosRef.current.y,
-      };
-
-      const handleGlobalMouseMove = (moveEvent: MouseEvent) => {
-        if (!isDraggingRef.current) return;
-        const newX = moveEvent.clientX - dragStartRef.current.x;
-        const newY = moveEvent.clientY - dragStartRef.current.y;
-        panPosRef.current = { x: newX, y: newY };
-
-        if (animFrameRef.current) {
-          cancelAnimationFrame(animFrameRef.current);
-        }
-        animFrameRef.current = requestAnimationFrame(() => {
-          updateTransform(newX, newY, diagramZoom);
-        });
-      };
-
-      const handleGlobalMouseUp = () => {
-        isDraggingRef.current = false;
-        setIsDragging(false);
-        if (animFrameRef.current) {
-          cancelAnimationFrame(animFrameRef.current);
-        }
-        window.removeEventListener('mousemove', handleGlobalMouseMove);
-        window.removeEventListener('mouseup', handleGlobalMouseUp);
-      };
-
-      window.addEventListener('mousemove', handleGlobalMouseMove);
-      window.addEventListener('mouseup', handleGlobalMouseUp);
-    };
-
-    const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-      if (e.touches.length !== 1) return;
-      lastTouchTimeRef.current = Date.now();
-      isDraggingRef.current = true;
-      setIsDragging(true);
-      const touch = e.touches[0];
-      dragStartRef.current = {
-        x: touch.clientX - panPosRef.current.x,
-        y: touch.clientY - panPosRef.current.y,
-      };
-
-      const handleGlobalTouchMove = (moveEvent: TouchEvent) => {
-        if (!isDraggingRef.current || moveEvent.touches.length !== 1) return;
-        const touchItem = moveEvent.touches[0];
-        const newX = touchItem.clientX - dragStartRef.current.x;
-        const newY = touchItem.clientY - dragStartRef.current.y;
-        panPosRef.current = { x: newX, y: newY };
-
-        if (animFrameRef.current) {
-          cancelAnimationFrame(animFrameRef.current);
-        }
-        animFrameRef.current = requestAnimationFrame(() => {
-          updateTransform(newX, newY, diagramZoom);
-        });
-      };
-
-      const handleGlobalTouchEnd = () => {
-        isDraggingRef.current = false;
-        setIsDragging(false);
-        if (animFrameRef.current) {
-          cancelAnimationFrame(animFrameRef.current);
-        }
-        window.removeEventListener('touchmove', handleGlobalTouchMove);
-        window.removeEventListener('touchend', handleGlobalTouchEnd);
-        window.removeEventListener('touchcancel', handleGlobalTouchEnd);
-      };
-
-      window.addEventListener('touchmove', handleGlobalTouchMove, { passive: true });
-      window.addEventListener('touchend', handleGlobalTouchEnd);
-      window.addEventListener('touchcancel', handleGlobalTouchEnd);
-    };
-
-    const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-      if (e.ctrlKey || e.metaKey) {
-        const delta = e.deltaY > 0 ? -0.15 : 0.15;
-        setDiagramZoom((z) => Math.min(Math.max(z + delta, 0.4), 3.0));
-      } else {
-        const newX = panPosRef.current.x - e.deltaX;
-        const newY = panPosRef.current.y - e.deltaY;
-        panPosRef.current = { x: newX, y: newY };
-        updateTransform(newX, newY, diagramZoom);
-      }
-    };
-
 
     const spacerRef = useRef<HTMLDivElement>(null);
     const [dynamicSpacerHeight, setDynamicSpacerHeight] = useState<number>(40);
@@ -708,9 +503,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
         const neededSpacer = Math.max(0, innerHeight - contentBelowTurnTop);
         setDynamicSpacerHeight(neededSpacer);
       }
-    }, [isLoading, messages]);
-
-
+    }, [isLoading, messages, isStreaming]);
 
     const handleCopyMessage = useCallback((id: string, text: string) => {
       navigator.clipboard.writeText(text);
@@ -744,7 +537,6 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
               isLoading={isLoading}
               copiedMsgId={copiedMsgId}
               onCopyMessage={handleCopyMessage}
-              onExpandMermaid={setExpandedSvg}
             />
           );
         })}
@@ -768,73 +560,6 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
         )}
 
         <div ref={spacerRef} className="messages-bottom-spacer" style={{ height: `${dynamicSpacerHeight}px` }} aria-hidden="true" />
-
-        {/* Fullscreen Diagram Lightbox Modal */}
-        {expandedSvg && (
-          <div
-            className="diagram-modal-overlay"
-            onClick={() => {
-              setExpandedSvg(null);
-              resetDiagramView();
-            }}
-          >
-            <div className="diagram-modal-content" onClick={(e) => e.stopPropagation()}>
-              <div className="diagram-modal-header">
-                <span className="diagram-modal-title">Full Diagram View</span>
-                <div className="diagram-modal-controls">
-                  <button
-                    className="diagram-modal-btn"
-                    onClick={() => setDiagramZoom((z) => Math.max(z - 0.2, 0.4))}
-                    title="Zoom Out (-)"
-                  >
-                    <ZoomOut size={16} />
-                  </button>
-                  <span className="diagram-zoom-indicator">
-                    {Math.round(diagramZoom * 100)}%
-                  </span>
-                  <button
-                    className="diagram-modal-btn"
-                    onClick={() => setDiagramZoom((z) => Math.min(z + 0.25, 3.0))}
-                    title="Zoom In (+)"
-                  >
-                    <ZoomIn size={16} />
-                  </button>
-                  <button
-                    className="diagram-modal-btn"
-                    onClick={resetDiagramView}
-                    title="Reset View & Zoom"
-                  >
-                    <RotateCcw size={15} />
-                  </button>
-                  <div className="diagram-divider" />
-                  <button
-                    className="diagram-modal-close-btn"
-                    onClick={() => {
-                      setExpandedSvg(null);
-                      resetDiagramView();
-                    }}
-                    title="Close (Esc)"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              </div>
-              <div
-                className={`diagram-modal-body ${isDragging ? 'dragging' : ''}`}
-                onMouseDown={handleMouseDown}
-                onTouchStart={handleTouchStart}
-                onDoubleClick={resetDiagramView}
-                onWheel={handleWheel}
-              >
-                <div
-                  ref={zoomWrapperRef}
-                  className="diagram-zoom-wrapper"
-                  dangerouslySetInnerHTML={{ __html: expandedSvg }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
