@@ -15,7 +15,7 @@ const slugify = (text: string): string => {
     .replace(/\s+/g, '-');
 };
 
-export const RightSidebar: React.FC<RightSidebarProps> = ({
+export const RightSidebar: React.FC<RightSidebarProps> = React.memo(({
   isVisible = true,
   onClose,
   latestMessageContent,
@@ -139,4 +139,4 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       </div>
     </aside>
   );
-};
+});

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bot,
   Brain,
@@ -19,31 +19,12 @@ import {
   ChevronRight,
   ChevronDown,
   ArrowLeft,
+  BookOpen,
 } from 'lucide-react';
 import OpenManusLogo from '../assets/OpenManusLogo';
 import { Conversation } from '../types';
 import { getModelDisplayName } from '../models';
-
-interface Lesson {
-  id: string;
-  title: string;
-}
-
-interface Module {
-  id: string;
-  title: string;
-  lessons: Lesson[];
-}
-
-interface SkillItem {
-  id: string;
-  title: string;
-  progressPercent: number;
-  statusText: string;
-  colorClass: 'green' | 'blue' | 'purple' | 'amber' | 'teal';
-  icon: React.ReactNode;
-  modules: Module[];
-}
+import { UserCourseSummary } from '../services/courseService';
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -53,118 +34,13 @@ interface SidebarProps {
   selectedModel: string;
   isLeftSidebarVisible?: boolean;
   onToggleSidebar?: () => void;
+  userCourses?: UserCourseSummary[];
+  onOpenCourseModal?: () => void;
+  onSelectLesson?: (courseId: string, lessonId: string) => void;
+  activeLessonId?: string;
+  activeTab?: 'chats' | 'learning' | 'docs' | 'tools' | 'plugins';
+  onTabChange?: (tab: 'chats' | 'learning' | 'docs' | 'tools' | 'plugins') => void;
 }
-
-const SAMPLE_SKILLS: SkillItem[] = [
-  {
-    id: 'skill-1',
-    title: 'AI Engineering',
-    progressPercent: 65,
-    statusText: '65% Mastered',
-    colorClass: 'green',
-    icon: <GraduationCap size={18} />,
-    modules: [
-      {
-        id: 'mod-1',
-        title: 'Module 1: Foundations',
-        lessons: [
-          { id: 'les-1-1', title: 'What is AI?' },
-          { id: 'les-1-2', title: 'Machine Learning Basics' },
-          { id: 'les-1-3', title: 'Neural Networks' },
-          { id: 'les-1-4', title: 'Embeddings' },
-        ],
-      },
-      {
-        id: 'mod-2',
-        title: 'Module 2: LLM Engineering',
-        lessons: [
-          { id: 'les-2-1', title: 'Prompt Engineering' },
-          { id: 'les-2-2', title: 'RAG Systems' },
-          { id: 'les-2-3', title: 'AI Agents' },
-        ],
-      },
-      {
-        id: 'mod-3',
-        title: 'Module 3: Deployment',
-        lessons: [
-          { id: 'les-3-1', title: 'APIs' },
-          { id: 'les-3-2', title: 'Monitoring' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'skill-2',
-    title: 'Full Stack Development',
-    progressPercent: 30,
-    statusText: '30% Mastered',
-    colorClass: 'blue',
-    icon: <CodeXml size={18} />,
-    modules: [
-      {
-        id: 'mod-fs-1',
-        title: 'Module 1: React & Frontend Architecture',
-        lessons: [
-          { id: 'les-fs-1-1', title: 'Component Design' },
-          { id: 'les-fs-1-2', title: 'State Management' },
-        ],
-      },
-      {
-        id: 'mod-fs-2',
-        title: 'Module 2: Node.js & APIs',
-        lessons: [
-          { id: 'les-fs-2-1', title: 'RESTful Controllers' },
-          { id: 'les-fs-2-2', title: 'Authentication' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'skill-3',
-    title: 'System Design',
-    progressPercent: 10,
-    statusText: '10% Mastered',
-    colorClass: 'purple',
-    icon: <Server size={18} />,
-    modules: [
-      {
-        id: 'mod-sd-1',
-        title: 'Module 1: Distributed Systems',
-        lessons: [{ id: 'les-sd-1-1', title: 'Load Balancing & Caching' }],
-      },
-    ],
-  },
-  {
-    id: 'skill-4',
-    title: 'Python Programming',
-    progressPercent: 0,
-    statusText: '0% Started',
-    colorClass: 'amber',
-    icon: <Terminal size={18} />,
-    modules: [
-      {
-        id: 'mod-py-1',
-        title: 'Module 1: Syntax & Variables',
-        lessons: [{ id: 'les-py-1-1', title: 'Lists & Dictionaries' }],
-      },
-    ],
-  },
-  {
-    id: 'skill-5',
-    title: 'Database Fundamentals',
-    progressPercent: 0,
-    statusText: '0% Started',
-    colorClass: 'teal',
-    icon: <Database size={18} />,
-    modules: [
-      {
-        id: 'mod-db-1',
-        title: 'Module 1: Relational Schemas',
-        lessons: [{ id: 'les-db-1-1', title: 'SQL & Indexing' }],
-      },
-    ],
-  },
-];
 
 export const Sidebar: React.FC<SidebarProps> = ({
   conversations,
@@ -174,16 +50,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
   selectedModel,
   isLeftSidebarVisible = true,
   onToggleSidebar,
+  userCourses = [],
+  onOpenCourseModal,
+  onSelectLesson,
+  activeLessonId = '',
+  activeTab = 'chats',
+  onTabChange,
 }) => {
-  const [activeTab, setActiveTab] = useState<'chats' | 'learning' | 'docs' | 'tools' | 'plugins'>('chats');
-  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
-  const [activeLessonId, setActiveLessonId] = useState<string>('les-1-1');
-  const [expandedModuleIds, setExpandedModuleIds] = useState<Record<string, boolean>>({
-    'mod-1': true,
-    'mod-2': true,
-  });
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [expandedModuleIds, setExpandedModuleIds] = useState<Record<string, boolean>>({});
 
-  const selectedSkill = SAMPLE_SKILLS.find((s) => s.id === selectedSkillId);
+  useEffect(() => {
+    if (activeLessonId && userCourses?.length > 0) {
+      for (const course of userCourses) {
+        if (!course.modules) continue;
+        for (const mod of course.modules) {
+          if (!mod.lessons) continue;
+          if (mod.lessons.some((l) => l.id === activeLessonId)) {
+            setSelectedCourseId(course.id);
+            return;
+          }
+        }
+      }
+    }
+  }, [activeLessonId, userCourses]);
+
+  const displayCourses = userCourses;
+  const selectedCourse = displayCourses.find((c) => c.id === selectedCourseId);
 
   const toggleModuleExpand = (moduleId: string) => {
     setExpandedModuleIds((prev) => ({
@@ -196,7 +89,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const toastTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const COMING_SOON_LABELS: Record<string, string> = {
-    learning: 'Courses',
     docs: 'Documents',
     tools: 'Tools',
     plugins: 'Plugins',
@@ -211,11 +103,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleTabClick = (tab: 'chats' | 'learning' | 'docs' | 'tools' | 'plugins') => {
-    if (tab !== 'chats') {
+    if (tab === 'docs' || tab === 'tools' || tab === 'plugins') {
       showComingSoonToast(tab);
       return;
     }
-    setActiveTab(tab);
+    onTabChange?.(tab);
     if (!isLeftSidebarVisible) {
       onToggleSidebar?.();
     }
@@ -223,7 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="dual-sidebar-wrapper">
-      {/* 1. Primary Navigation Rail (Far Left Icon Dock - ALWAYS VISIBLE) */}
+      {/* 1. Primary Navigation Rail */}
       <nav className="primary-nav-rail">
         <div className="rail-top">
           <button
@@ -255,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               className={`rail-icon-btn ${activeTab === 'learning' ? 'active' : ''}`}
               onClick={() => handleTabClick('learning')}
-              title="Learning & Skills"
+              title="Learning & Courses"
               aria-label="Learning"
             >
               <Brain size={20} />
@@ -304,7 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* 2. Secondary Content Panel */}
       <aside className={`sidebar-container ${!isLeftSidebarVisible ? 'hidden' : ''}`}>
-        {/* View Mode 1: CHATS (Bot Icon) */}
+        {/* View Mode 1: CHATS */}
         {activeTab === 'chats' && (
           <>
             <div className="sidebar-header">
@@ -356,11 +248,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </>
         )}
 
-        {/* View Mode 2: LEARNING & SKILLS (Brain Icon) */}
+        {/* View Mode 2: LEARNING & COURSES */}
         {activeTab === 'learning' && (
           <>
-            {/* Case A: Overview Skills List */}
-            {!selectedSkill && (
+            {/* Case A: Courses List */}
+            {!selectedCourse && (
               <>
                 <div className="sidebar-header">
                   <span className="brand-name">Gohard</span>
@@ -374,114 +266,87 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
 
                 <div className="sidebar-action-area">
-                  <button className="new-chat-btn" onClick={() => { }}>
+                  <button className="new-chat-btn" onClick={onOpenCourseModal}>
                     <Plus size={18} />
-                    <span>New Skill</span>
+                    <span>Create Skill</span>
                   </button>
                 </div>
 
                 <div className="skills-section">
                   <div className="chats-header">
-                    <span className="chats-title">MY SKILLS</span>
+                    <span className="chats-title">MY COURSES</span>
                   </div>
 
                   <div className="skills-list">
-                    {SAMPLE_SKILLS.map((skill) => (
+                    {displayCourses.map((course) => (
                       <div
-                        key={skill.id}
+                        key={course.id}
                         className="skill-card"
-                        onClick={() => setSelectedSkillId(skill.id)}
+                        onClick={() => setSelectedCourseId(course.id)}
                       >
-                        <div className={`skill-icon-box ${skill.colorClass}`}>
-                          {skill.icon}
+                        <div className="skill-icon-box green">
+                          <GraduationCap size={18} />
                         </div>
 
                         <div className="skill-card-content">
                           <div className="skill-card-top-row">
-                            <span className="skill-card-title">{skill.title}</span>
+                            <span className="skill-card-title">{course.title}</span>
                             <ChevronRight size={16} className="skill-chevron" />
                           </div>
-                          <span className={`skill-status-text ${skill.colorClass}`}>
-                            {skill.statusText}
+                          <span className="skill-status-text green">
+                            {course.totalLessons} Lessons
                           </span>
-                          <div className="skill-progress-bar-bg">
-                            <div
-                              className={`skill-progress-bar-fill ${skill.colorClass}`}
-                              style={{ width: `${skill.progressPercent}%` }}
-                            />
-                          </div>
                         </div>
                       </div>
                     ))}
-                  </div>
-
-                  <div className="recently-accessed-section">
-                    <span className="chats-title">RECENTLY ACCESSED</span>
-                    <div
-                      className="recent-skill-card"
-                      onClick={() => setSelectedSkillId('skill-1')}
-                    >
-                      <div className="skill-icon-box gray">
-                        <GraduationCap size={18} />
-                      </div>
-                      <div className="skill-card-content">
-                        <div className="skill-card-top-row">
-                          <span className="skill-card-title">AI Engineering</span>
-                          <ChevronRight size={16} className="skill-chevron" />
-                        </div>
-                        <span className="recent-subtitle">Continue learning</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </>
             )}
 
-            {/* Case B: Selected Skill Detail View */}
-            {selectedSkill && (
+            {/* Case B: Selected Course Detail View */}
+            {selectedCourse && (
               <>
                 <div className="sidebar-header-back-row">
                   <button
                     className="back-skills-btn"
-                    onClick={() => setSelectedSkillId(null)}
+                    onClick={() => setSelectedCourseId(null)}
                   >
                     <ArrowLeft size={16} />
-                    <span>Back to Skills</span>
+                    <span>Back to Courses</span>
+                  </button>
+                  <button
+                    className="sidebar-toggle-btn"
+                    title="Collapse Sidebar"
+                    onClick={onToggleSidebar}
+                  >
+                    <PanelLeftClose size={18} />
                   </button>
                 </div>
 
-                {/* Course Header Card matching skill's color theme */}
-                <div className={`course-detail-header-card ${selectedSkill.colorClass}`}>
-                  <div className={`skill-icon-box ${selectedSkill.colorClass}`}>
-                    {selectedSkill.icon}
+                <div className="course-detail-header-card green">
+                  <div className="skill-icon-box green">
+                    <GraduationCap size={18} />
                   </div>
                   <div className="course-detail-header-info">
-                    <span className="course-detail-title">{selectedSkill.title}</span>
-                    <span className={`skill-status-text ${selectedSkill.colorClass}`}>
-                      {selectedSkill.statusText}
+                    <span className="course-detail-title">{selectedCourse.title}</span>
+                    <span className="skill-status-text green">
+                      {selectedCourse.totalLessons} Lessons
                     </span>
-                    <div className="skill-progress-bar-bg">
-                      <div
-                        className={`skill-progress-bar-fill ${selectedSkill.colorClass}`}
-                        style={{ width: `${selectedSkill.progressPercent}%` }}
-                      />
-                    </div>
                   </div>
                 </div>
 
-                {/* Modules Section (Clean List, like Chats) */}
                 <div className="chats-section">
                   <div className="chats-header">
                     <span className="chats-title">MODULES</span>
                   </div>
 
                   <div className="modules-clean-list">
-                    {selectedSkill.modules.map((mod) => {
+                    {selectedCourse.modules.map((mod) => {
                       const isExpanded = expandedModuleIds[mod.id] !== false;
 
                       return (
                         <div key={mod.id} className="clean-module-group">
-                          {/* Module Header */}
                           <div
                             className="clean-module-header"
                             onClick={() => toggleModuleExpand(mod.id)}
@@ -496,16 +361,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             <span className="clean-module-title">{mod.title}</span>
                           </div>
 
-                          {/* Lessons (Indented Clean Chat Items) */}
                           {isExpanded && (
                             <div className="clean-lessons-list">
                               {mod.lessons.map((les) => (
                                 <div
                                   key={les.id}
-                                  className={`chat-item ${les.id === activeLessonId ? 'active' : ''
-                                    }`}
-                                  onClick={() => setActiveLessonId(les.id)}
+                                  className={`chat-item ${les.id === activeLessonId ? 'active' : ''}`}
+                                  onClick={() => onSelectLesson?.(selectedCourse.id, les.id)}
                                 >
+                                  <BookOpen size={15} className="chat-icon" />
                                   <span className="chat-title">{les.title}</span>
                                 </div>
                               ))}
@@ -544,3 +408,5 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </div>
   );
 };
+
+export default Sidebar;

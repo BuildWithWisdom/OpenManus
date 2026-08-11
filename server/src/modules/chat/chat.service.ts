@@ -1,5 +1,6 @@
 import { Context } from 'hono';
 import { env } from 'hono/adapter';
+import { prisma } from '../../db/client';
 import { buildSystemPrompt } from '../../prompts/promptBuilder';
 import { PersonaId } from '../../prompts/types';
 import { MODEL_GROUPS } from '../../models';
@@ -19,9 +20,155 @@ export interface StreamChatInput {
   personaId?: PersonaId;
   userId?: string;
   courseId?: string;
+  conversationId?: string;
 }
 
 export class ChatService {
+  private conversationMemoryCache = new Map<string, any>();
+
+  private async ensureUserExists(userId: string) {
+    const existing = await prisma.user.findUnique({ where: { id: userId } });
+    if (!existing) {
+      await prisma.user.create({
+        data: {
+          id: userId,
+          email: `${userId}@gohard.local`,
+          name: 'Gohard Learner',
+        },
+      });
+    }
+  }
+
+  async getUserConversations(userId: string = 'user-default') {
+    await this.ensureUserExists(userId);
+    const conversations = await prisma.conversation.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    return conversations.map((conv) => ({
+      id: conv.id,
+      userId: conv.userId,
+      title: conv.title,
+      modelId: conv.modelId,
+      createdAt: conv.createdAt,
+      messages: conv.messages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        reasoningContent: msg.reasoningContent,
+        createdAt: msg.createdAt,
+      })),
+    }));
+  }
+
+  async getConversationDetails(conversationId: string, userId: string = 'user-default') {
+    if (this.conversationMemoryCache.has(conversationId)) {
+      return this.conversationMemoryCache.get(conversationId);
+    }
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { id: conversationId, userId },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!conversation) return null;
+
+    const payload = {
+      id: conversation.id,
+      userId: conversation.userId,
+      title: conversation.title,
+      modelId: conversation.modelId,
+      createdAt: conversation.createdAt,
+      messages: conversation.messages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        reasoningContent: msg.reasoningContent,
+        createdAt: msg.createdAt,
+      })),
+    };
+
+    this.conversationMemoryCache.set(conversationId, payload);
+    return payload;
+  }
+
+  async saveConversationMessages(params: {
+    conversationId?: string;
+    userId?: string;
+    modelId?: string;
+    title?: string;
+    userContent: string;
+    assistantContent: string;
+  }) {
+    const userId = params.userId || 'user-default';
+    await this.ensureUserExists(userId);
+
+    const title =
+      params.title ||
+      (params.userContent.length > 40 ? `${params.userContent.slice(0, 40)}...` : params.userContent) ||
+      'New Chat';
+    const modelId = params.modelId || 'nvidia/nemotron-3-nano-30b-a3b';
+
+    let conversationId = params.conversationId;
+    if (!conversationId) {
+      const created = await prisma.conversation.create({
+        data: {
+          userId,
+          title,
+          modelId,
+        },
+      });
+      conversationId = created.id;
+    } else {
+      await prisma.conversation.upsert({
+        where: { id: conversationId },
+        update: { title, modelId },
+        create: {
+          id: conversationId,
+          userId,
+          title,
+          modelId,
+        },
+      });
+    }
+
+    await prisma.message.create({
+      data: {
+        conversationId,
+        role: 'user',
+        content: params.userContent,
+      },
+    });
+
+    await prisma.message.create({
+      data: {
+        conversationId,
+        role: 'assistant',
+        content: params.assistantContent,
+      },
+    });
+
+    this.conversationMemoryCache.delete(conversationId);
+    return conversationId;
+  }
+
+  async deleteConversation(conversationId: string, userId: string = 'user-default') {
+    this.conversationMemoryCache.delete(conversationId);
+    await prisma.conversation.deleteMany({
+      where: { id: conversationId, userId },
+    });
+    return { success: true };
+  }
   async handleStreamChat(c: Context<{ Bindings: Bindings }>, input: StreamChatInput) {
     const environment = env<{ CLOUDFLARE_ACCOUNT_ID?: string; CLOUDFLARE_API_TOKEN?: string; CLOUDFLARE_GATEWAY_ID?: string }>(c);
     const accountId = environment.CLOUDFLARE_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -118,6 +265,15 @@ export class ChatService {
 
       const triggerBackgroundMemoryExtraction = () => {
         if (!lastUserMessage || !accumulatedAssistantText) return;
+
+        this.saveConversationMessages({
+          conversationId: input.conversationId,
+          userId,
+          modelId: selectedModel,
+          userContent: lastUserMessage,
+          assistantContent: accumulatedAssistantText,
+        }).catch((err) => console.error('[Hono Server] Error persisting conversation messages:', err));
+
         analystEngine
           .extractAndApplyMemory({
             userId,

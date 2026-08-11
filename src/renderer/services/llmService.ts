@@ -12,12 +12,13 @@ export async function streamLLMMessage(
   modelName: string,
   providerSlug?: string,
   callbacks?: StreamCallbacks,
-  personaId?: string
+  personaId?: string,
+  conversationId?: string
 ): Promise<void> {
   let hasEmittedChunk = false;
   let isThinking = false;
 
-  console.log('[LLM Client] Sending request to:', `${HONO_API_URL}/api/chat/stream`, { modelName, providerSlug });
+  console.log('[LLM Client] Sending request to:', `${HONO_API_URL}/api/chat/stream`, { modelName, providerSlug, conversationId });
 
   try {
     const response = await fetch(`${HONO_API_URL}/api/chat/stream`, {
@@ -30,6 +31,7 @@ export async function streamLLMMessage(
         modelName,
         providerSlug,
         personaId: personaId || 'default',
+        conversationId,
       }),
     });
 
@@ -143,4 +145,32 @@ export async function streamLLMMessage(
     const errorMsg = err instanceof Error ? err.message : 'Connection failed';
     callbacks?.onError(errorMsg);
   }
+}
+
+export async function fetchUserConversations(userId: string = 'user-default') {
+  const response = await fetch(`${HONO_API_URL}/api/chat/conversations?userId=${encodeURIComponent(userId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch conversations [${response.status}]`);
+  }
+  const data = await response.json();
+  return data.conversations || [];
+}
+
+export async function fetchConversationDetails(conversationId: string, userId: string = 'user-default') {
+  const response = await fetch(`${HONO_API_URL}/api/chat/conversations/${encodeURIComponent(conversationId)}?userId=${encodeURIComponent(userId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch conversation details [${response.status}]`);
+  }
+  const data = await response.json();
+  return data.conversation;
+}
+
+export async function deleteConversationApi(conversationId: string, userId: string = 'user-default') {
+  const response = await fetch(`${HONO_API_URL}/api/chat/conversations/${encodeURIComponent(conversationId)}?userId=${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete conversation [${response.status}]`);
+  }
+  return response.json();
 }

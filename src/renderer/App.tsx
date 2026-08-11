@@ -5,9 +5,13 @@ import { ChatHeaderBar, TurnItem } from './components/ChatHeaderBar';
 import { RightSidebar } from './components/RightSidebar';
 import { MessageList } from './components/MessageList';
 import { ChatInput } from './components/ChatInput';
+import { CourseCreationModal } from './components/CourseCreationModal';
+import { LessonWorkspace } from './components/LessonWorkspace';
+import { AnimationPreviewPage } from './components/preview/AnimationPreviewPage';
 import { ChatMessage, Conversation, ThemeMode } from './types';
 import { getModelById } from './models';
-import { streamLLMMessage } from './services/llmService';
+import { streamLLMMessage, fetchUserConversations } from './services/llmService';
+import { fetchUserCourses, UserCourseSummary } from './services/courseService';
 import './theme.css';
 
 export const App: React.FC = () => {
@@ -19,6 +23,64 @@ export const App: React.FC = () => {
   const [showRightSidebar, setShowRightSidebar] = useState<boolean>(false);
   const [showLeftSidebar, setShowLeftSidebar] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth >= 768);
   const [activeTurnIndex, setActiveTurnIndex] = useState<number>(0);
+
+  const [activeTab, setActiveTab] = useState<'chats' | 'learning' | 'docs' | 'tools' | 'plugins'>('chats');
+  const [userCourses, setUserCourses] = useState<UserCourseSummary[]>([]);
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState<boolean>(false);
+  const [showAnimationPreview, setShowAnimationPreview] = useState<boolean>(false);
+  const [activeCourseId, setActiveCourseId] = useState<string>('');
+  const [activeLessonId, setActiveLessonId] = useState<string>('');
+  const [activeLessonMarkdown, setActiveLessonMarkdown] = useState<string>('');
+  const [lessonCache, setLessonCache] = useState<Record<string, string>>({});
+
+  const handleLessonContentLoaded = useCallback((markdown: string) => {
+    setActiveLessonMarkdown(markdown);
+    if (activeLessonId && markdown) {
+      setLessonCache((prev) => ({ ...prev, [activeLessonId]: markdown }));
+    }
+  }, [activeLessonId]);
+
+  const handleLessonGenerated = useCallback((generatedLessonId: string, markdown: string) => {
+    if (generatedLessonId && markdown) {
+      setLessonCache((prev) => ({ ...prev, [generatedLessonId]: markdown }));
+    }
+    setUserCourses((prevCourses) =>
+      prevCourses.map((course) => ({
+        ...course,
+        modules: course.modules?.map((mod) => ({
+          ...mod,
+          lessons: mod.lessons?.map((les) =>
+            les.id === generatedLessonId ? { ...les, hasContent: true } : les
+          ),
+        })),
+      }))
+    );
+  }, []);
+
+  const loadCourses = useCallback(async () => {
+    try {
+      const courses = await fetchUserCourses('user-default');
+      setUserCourses(courses);
+    } catch (err) {
+      console.warn('[App] Failed to load user courses:', err);
+    }
+  }, []);
+
+  const loadConversations = useCallback(async () => {
+    try {
+      const convs = await fetchUserConversations('user-default');
+      if (convs && convs.length > 0) {
+        setConversations(convs);
+      }
+    } catch (err) {
+      console.warn('[App] Failed to load saved conversations:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCourses();
+    loadConversations();
+  }, [loadCourses, loadConversations]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -39,6 +101,17 @@ export const App: React.FC = () => {
   const activeId = useMemo(() => {
     const match = location.pathname.match(/^\/chat\/(.+)$/);
     return match ? decodeURIComponent(match[1]) : '';
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const lessonMatch = location.pathname.match(/^\/course\/([^/]+)\/lesson\/([^/]+)$/);
+    if (lessonMatch) {
+      const cId = decodeURIComponent(lessonMatch[1]);
+      const lId = decodeURIComponent(lessonMatch[2]);
+      setActiveCourseId(cId);
+      setActiveLessonId(lId);
+      setActiveTab('learning');
+    }
   }, [location.pathname]);
 
   const activeRequestIdRef = useRef<Record<string, string>>({});
@@ -132,8 +205,6 @@ export const App: React.FC = () => {
     }
     prevIsLoadingRef.current = isLoading;
   }, [isLoading, currentConversation.messages]);
-
-
 
   const handleAbortStream = useCallback(async (): Promise<void> => {
     const currentReqId = activeRequestIdRef.current[activeId];
@@ -299,7 +370,9 @@ export const App: React.FC = () => {
               setStreamingMap((prev) => ({ ...prev, [currentConvId]: false }));
               delete activeRequestIdRef.current[currentConvId];
             },
-          }
+          },
+          'default',
+          currentConvId
         );
       } catch (err: any) {
         setConversations((previous) =>
@@ -329,12 +402,39 @@ export const App: React.FC = () => {
   );
 
   const handleNewChat = useCallback((): void => {
+    setActiveTab('chats');
+    setActiveLessonId('');
     navigate('/');
     setActiveTurnIndex(0);
     if (isMobile) {
       setShowLeftSidebar(false);
     }
   }, [navigate, isMobile]);
+
+  const handleSelectLesson = useCallback(
+    (courseId: string, lessonId: string) => {
+      setActiveCourseId(courseId);
+      setActiveLessonId(lessonId);
+      setActiveTab('learning');
+      navigate(`/course/${courseId}/lesson/${lessonId}`);
+      if (isMobile) {
+        setShowLeftSidebar(false);
+      }
+    },
+    [navigate, isMobile]
+  );
+
+  const handleCourseCreated = useCallback(
+    async () => {
+      try {
+        const courses = await fetchUserCourses('user-default');
+        setUserCourses(courses);
+      } catch (err) {
+        console.error('[App] Error refreshing user courses:', err);
+      }
+    },
+    []
+  );
 
   const activeTurnAssistantMessage = useMemo(() => {
     const userMsgs = currentConversation.messages.filter((m) => m.role === 'user');
@@ -353,14 +453,20 @@ export const App: React.FC = () => {
   const handleSelectHeading = useCallback(
     (headingId: string): void => {
       const elem = document.getElementById(headingId);
+      if (!elem) return;
+
       const scrollContainer = document.querySelector('.messages-container') as HTMLElement | null;
-      if (elem && scrollContainer) {
+
+      if (scrollContainer) {
         const containerRect = scrollContainer.getBoundingClientRect();
         const elementRect = elem.getBoundingClientRect();
         const headerOffset = 16;
         const targetScrollTop = elementRect.top - containerRect.top + scrollContainer.scrollTop - headerOffset;
         scrollContainer.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+      } else {
+        elem.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
+
       if (isMobile) {
         setShowRightSidebar(false);
       }
@@ -370,6 +476,8 @@ export const App: React.FC = () => {
 
   const handleSelectConversation = useCallback(
     (id: string) => {
+      setActiveTab('chats');
+      setActiveLessonId('');
       navigate(`/chat/${id}`);
       setActiveTurnIndex(0);
       if (isMobile) {
@@ -385,6 +493,23 @@ export const App: React.FC = () => {
   }, []);
 
   const isAnyDrawerOpenOnMobile = isMobile && (showLeftSidebar || showRightSidebar);
+
+  const activeLessonMeta = useMemo(() => {
+    if (!activeLessonId || !userCourses?.length) return null;
+    for (const course of userCourses) {
+      if (!course.modules) continue;
+      for (const mod of course.modules) {
+        if (!mod.lessons) continue;
+        const found = mod.lessons.find((l) => l.id === activeLessonId);
+        if (found) return found;
+      }
+    }
+    return null;
+  }, [activeLessonId, userCourses]);
+
+  const activeLessonTitle = useMemo(() => {
+    return activeLessonMeta?.title || '';
+  }, [activeLessonMeta]);
 
   return (
     <div className="app-layout" data-theme={theme}>
@@ -404,18 +529,28 @@ export const App: React.FC = () => {
         selectedModel={selectedModel}
         isLeftSidebarVisible={showLeftSidebar}
         onToggleSidebar={handleToggleLeftSidebar}
+        userCourses={userCourses}
+        onOpenCourseModal={() => setIsCourseModalOpen(true)}
+        onSelectLesson={handleSelectLesson}
+        activeLessonId={activeLessonId}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
 
       <div className="main-content">
         <div className="main-workspace-area">
           <div className="chat-workspace-card">
             <ChatHeaderBar
-              title={currentConversation.title}
-              turns={turns}
+              title={activeTab === 'learning' && activeLessonId ? (activeLessonTitle || 'Lesson View') : currentConversation.title}
+              turns={activeTab === 'learning' && activeLessonId ? [] : turns}
               activeTurnIndex={activeTurnIndex}
               onSelectTurn={handleSelectTurn}
               onToggleContents={handleToggleContents}
-              hasMessages={currentConversation.messages.length > 0}
+              hasMessages={
+                activeTab === 'learning' && activeLessonId
+                  ? Boolean(activeLessonMarkdown)
+                  : currentConversation.messages.length > 0
+              }
               theme={theme}
               onToggleTheme={toggleTheme}
               isLeftSidebarVisible={showLeftSidebar}
@@ -423,12 +558,24 @@ export const App: React.FC = () => {
             />
 
             <div className="chat-card-body" ref={chatBodyRef}>
-              <MessageList
-                messages={currentConversation.messages}
-                isLoading={isLoading}
-                isStreaming={isStreaming}
-                onSelectPrompt={handleSendMessage}
-              />
+              {activeTab === 'learning' && activeLessonId ? (
+                <LessonWorkspace
+                  lessonId={activeLessonId}
+                  selectedModel={selectedModel}
+                  initialHasContent={activeLessonMeta ? activeLessonMeta.hasContent : undefined}
+                  lessonTitle={activeLessonMeta ? activeLessonMeta.title : undefined}
+                  cachedMarkdown={activeLessonId ? lessonCache[activeLessonId] : undefined}
+                  onLessonContentLoaded={handleLessonContentLoaded}
+                  onLessonGenerated={handleLessonGenerated}
+                />
+              ) : (
+                <MessageList
+                  messages={currentConversation.messages}
+                  isLoading={isLoading}
+                  isStreaming={isStreaming}
+                  onSelectPrompt={handleSendMessage}
+                />
+              )}
             </div>
 
             <ChatInput
@@ -444,11 +591,37 @@ export const App: React.FC = () => {
           <RightSidebar
             isVisible={showRightSidebar}
             onClose={handleToggleContents}
-            latestMessageContent={activeTurnAssistantMessage?.content}
+            latestMessageContent={
+              activeTab === 'learning' && activeLessonId
+                ? activeLessonMarkdown
+                : activeTurnAssistantMessage?.content
+            }
             onSelectHeading={handleSelectHeading}
           />
         </div>
       </div>
+
+      <CourseCreationModal
+        isOpen={isCourseModalOpen}
+        onClose={() => setIsCourseModalOpen(false)}
+        onCourseCreated={handleCourseCreated}
+        selectedModel={selectedModel}
+        onOpenAnimationPreview={() => setShowAnimationPreview(true)}
+      />
+
+      {(showAnimationPreview || location.pathname === '/animation-preview') && (
+        <AnimationPreviewPage
+          onClose={() => {
+            setShowAnimationPreview(false);
+            if (location.pathname === '/animation-preview') {
+              navigate('/');
+            }
+          }}
+          onSelectWinningOption={(winner) => {
+            console.log('[App] Selected winning animation option:', winner);
+          }}
+        />
+      )}
     </div>
   );
 };

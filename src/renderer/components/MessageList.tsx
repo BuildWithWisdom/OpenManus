@@ -8,6 +8,7 @@ import mermaid from 'mermaid';
 import OpenManusLogo from '../assets/OpenManusLogo';
 import { WelcomeState } from './WelcomeState';
 import { ChatMessage } from '../types';
+import { FormattedResponse } from './FormattedResponse';
 
 export interface ParsedMessageContent {
   thinking: string | null;
@@ -201,11 +202,11 @@ mermaid.initialize({
     background: 'transparent',
     primaryColor: '#161b22',
     primaryTextColor: '#ffffff',
-    primaryBorderColor: '#10b981',
+    primaryBorderColor: '#22c55e',
     lineColor: '#64748b',
     secondaryColor: '#2563eb',
     tertiaryColor: '#f59e0b',
-    nodeBorder: '#10b981',
+    nodeBorder: '#22c55e',
     clusterBkg: '#11161d',
     clusterBorder: 'rgba(255, 255, 255, 0.15)',
     titleColor: '#ffffff',
@@ -427,91 +428,7 @@ const MessageRow = React.memo<MessageRowProps>(
                         />
                       )}
                       {parsed.mainContent ? (
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            h1({ children }) {
-                              const textStr = Array.isArray(children) ? children.join('') : String(children);
-                              const id = `heading-${slugify(textStr)}`;
-                              return <h1 id={id} className="md-heading md-h1">{children}</h1>;
-                            },
-                            h2({ children }) {
-                              const textStr = Array.isArray(children) ? children.join('') : String(children);
-                              const id = `heading-${slugify(textStr)}`;
-                              return <h2 id={id} className="md-heading md-h2">{children}</h2>;
-                            },
-                            h3({ children }) {
-                              const textStr = Array.isArray(children) ? children.join('') : String(children);
-                              const id = `heading-${slugify(textStr)}`;
-                              return <h3 id={id} className="md-heading md-h3">{children}</h3>;
-                            },
-                            p({ children }) {
-                              return <p className="md-paragraph">{children}</p>;
-                            },
-                            ul({ children }) {
-                              return <ul className="md-list md-ul">{children}</ul>;
-                            },
-                            ol({ children }) {
-                              return <ol className="md-list md-ol">{children}</ol>;
-                            },
-                            li({ children }) {
-                              return <li className="md-list-item">{children}</li>;
-                            },
-                            strong({ children }) {
-                              return <strong className="md-strong">{children}</strong>;
-                            },
-                            hr() {
-                              return <hr className="content-divider" />;
-                            },
-                            table({ children }) {
-                              return (
-                                <div className="md-table-wrapper">
-                                  <table className="md-table">{children}</table>
-                                </div>
-                              );
-                            },
-                            thead({ children }) {
-                              return <thead className="md-thead">{children}</thead>;
-                            },
-                            tbody({ children }) {
-                              return <tbody className="md-tbody">{children}</tbody>;
-                            },
-                            tr({ children }) {
-                              return <tr className="md-tr">{children}</tr>;
-                            },
-                            th({ children }) {
-                              return <th className="md-th">{children}</th>;
-                            },
-                            td({ children }) {
-                              return <td className="md-td">{children}</td>;
-                            },
-                            code({ inline, className, children, ...props }: any) {
-                              const match = /language-(\w+)/.exec(className || '');
-                              const codeString = String(children).replace(/\n$/, '');
-                              const lang = match ? match[1].toLowerCase() : '';
-
-                              if (!inline && lang === 'mermaid') {
-                                return <MermaidDiagram chart={codeString} onExpand={onExpandMermaid} />;
-                              }
-
-                              if (!inline && match) {
-                                return <CodeBlock language={match[1]} value={codeString} />;
-                              }
-
-                              if (!inline && codeString.includes('\n')) {
-                                return <CodeBlock language="typescript" value={codeString} />;
-                              }
-
-                              return (
-                                <code className="inline-code" {...props}>
-                                  {children}
-                                </code>
-                              );
-                            },
-                          }}
-                        >
-                          {parsed.mainContent}
-                        </ReactMarkdown>
+                        <FormattedResponse content={parsed.mainContent} onExpandMermaid={onExpandMermaid} />
                       ) : (isLastAssistant && isLoading) ? (
                         <div className="message-bubble loading">
                           <span className="dot" />
