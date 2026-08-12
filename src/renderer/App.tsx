@@ -35,7 +35,6 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'chats' | 'learning' | 'docs' | 'tools' | 'plugins'>('chats');
   const [userCourses, setUserCourses] = useState<UserCourseSummary[]>([]);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState<boolean>(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [showAnimationPreview, setShowAnimationPreview] = useState<boolean>(false);
   const [activeCourseId, setActiveCourseId] = useState<string>('');
   const [activeLessonId, setActiveLessonId] = useState<string>('');

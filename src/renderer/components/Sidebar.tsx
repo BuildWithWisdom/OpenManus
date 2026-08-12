@@ -24,7 +24,7 @@ import {
   UserCheck,
   LogOut,
 } from 'lucide-react';
-import OpenManusLogo from '../assets/OpenManusLogo';
+import GohardLogo from './GohardLogo';
 import { Conversation } from '../types';
 import { getModelDisplayName } from '../models';
 import { UserCourseSummary } from '../services/courseService';
@@ -148,7 +148,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             aria-label={isLeftSidebarVisible ? 'Gohard' : 'Expand Sidebar'}
           >
             <span className="logo-default">
-              <OpenManusLogo size={25} />
+              <GohardLogo size={25} />
             </span>
             {!isLeftSidebarVisible && (
               <span className="logo-hover-expand">

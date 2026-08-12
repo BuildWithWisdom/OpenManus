@@ -1,6 +1,6 @@
 import React from 'react';
 import { Lightbulb, Code, FileText, TrendingUp, ArrowRight } from 'lucide-react';
-import OpenManusLogo from '../assets/OpenManusLogo';
+import GohardLogo from './GohardLogo';
 
 interface WelcomeStateProps {
   onSelectPrompt: (promptText: string) => void;
@@ -9,35 +9,35 @@ interface WelcomeStateProps {
 export const WelcomeState: React.FC<WelcomeStateProps> = ({ onSelectPrompt }) => {
   const promptSuggestions = [
     {
-      id: 'llm-explain',
+      id: 'transformer-analogy',
       icon: <Lightbulb size={20} className="prompt-icon" />,
-      text: 'Explain how large language models work',
+      text: 'Explain Transformers using a simple analogy',
     },
     {
-      id: 'python-csv',
+      id: 'nn-from-scratch',
       icon: <Code size={20} className="prompt-icon" />,
-      text: 'Write a Python function to parse a CSV file',
+      text: 'Teach me how to build a neural network from scratch',
     },
     {
-      id: 'summarize-paper',
+      id: 'system-design',
       icon: <FileText size={20} className="prompt-icon" />,
-      text: 'Summarize this research paper',
+      text: 'Teach me System Design for scaling apps',
     },
     {
-      id: 'react-vue',
+      id: 'sql-nosql-deepdive',
       icon: <TrendingUp size={20} className="prompt-icon" />,
-      text: 'Compare React and Vue in detail',
+      text: 'Compare SQL vs. NoSQL databases',
     },
   ];
 
   return (
     <div className="welcome-container">
       <div className="welcome-hero">
-        <OpenManusLogo size={52} className="hero-logo" />
+        <GohardLogo size={52} className="hero-logo" />
         <h1 className="welcome-title">
           Hello, I’m <span className="highlight-green">Gohard.</span>
         </h1>
-        <p className="welcome-subtitle">How can I help you today?</p>
+        <p className="welcome-subtitle">What should I teach you today?</p>
       </div>
 
       <div className="prompt-cards-grid">

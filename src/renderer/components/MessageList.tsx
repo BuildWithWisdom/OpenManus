@@ -1,11 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { ThumbsUp, ThumbsDown, Copy, RotateCw, Check, Maximize2, X, ZoomIn, ZoomOut, RotateCcw, ChevronRight, Loader2 } from 'lucide-react';
 import mermaid from 'mermaid';
-import OpenManusLogo from '../assets/OpenManusLogo';
+import GohardLogo from './GohardLogo';
 import { WelcomeState } from './WelcomeState';
 import { ChatMessage } from '../types';
 import { FormattedResponse } from './FormattedResponse';
@@ -408,7 +406,7 @@ const MessageRow = React.memo<MessageRowProps>(
           <div className="assistant-message-wrapper">
             <div className="assistant-header-row">
               <div className="avatar-container">
-                <OpenManusLogo size={22} />
+                <GohardLogo size={22} />
               </div>
               <span className="assistant-name">Gohard</span>
               <span className="assistant-timestamp">{message.timestamp || '10:42 AM'}</span>
@@ -546,7 +544,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
             <div className="assistant-message-wrapper">
               <div className="assistant-header-row">
                 <div className="avatar-container">
-                  <OpenManusLogo size={20} />
+                  <GohardLogo size={20} />
                 </div>
                 <span className="assistant-name">Gohard</span>
               </div>

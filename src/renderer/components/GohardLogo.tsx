@@ -1,18 +1,18 @@
 import React from 'react';
-import logoImg from './logo.png';
+import logoImg from '../assets/logo.png';
 
 interface LogoProps {
   size?: number;
   className?: string;
 }
 
-export const OpenManusLogo: React.FC<LogoProps> = ({ size = 32, className = '' }) => {
+export const GohardLogo: React.FC<LogoProps> = ({ size = 32, className = '' }) => {
   return (
     <img
       src={logoImg}
       width={size}
       height={size}
-      alt="OpenManus Logo"
+      alt="Gohard Logo"
       className={className}
       style={{
         objectFit: 'contain',
@@ -23,4 +23,4 @@ export const OpenManusLogo: React.FC<LogoProps> = ({ size = 32, className = '' }
   );
 };
 
-export default OpenManusLogo;
+export default GohardLogo;

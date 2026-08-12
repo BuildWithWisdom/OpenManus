@@ -19,7 +19,7 @@ app.use(
 );
 
 app.get('/health', (c) => {
-  return c.json({ status: 'ok', service: 'OpenManus Web Backend', timestamp: new Date().toISOString() });
+  return c.json({ status: 'ok', service: 'Gohard Web Backend', timestamp: new Date().toISOString() });
 });
 
 app.route('/api/auth', authRouter);

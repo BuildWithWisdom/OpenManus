@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, UserCheck, AlertCircle, CheckCircle2, Loader2, X } from 'lucide-react';
-import OpenManusLogo from '../assets/OpenManusLogo';
+import GohardLogo from './GohardLogo';
 import { useAuth } from '../context/AuthContext';
 
 interface AuthScreenProps {
@@ -104,7 +104,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onClose, initialMode = '
 
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div style={{ display: 'inline-flex', marginBottom: '12px' }}>
-            <OpenManusLogo size={44} />
+            <GohardLogo size={44} />
           </div>
           <h1 style={{ margin: '0 0 6px', fontSize: '24px', fontWeight: 700, letterSpacing: '-0.5px' }}>
             Gohard AI
