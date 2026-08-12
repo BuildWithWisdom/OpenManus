@@ -12,7 +12,7 @@ async function testAdaptiveLoop() {
   if (process.env.DATABASE_URL) {
     await prisma.user.upsert({
       where: { id: testUserId },
-      create: { id: testUserId, email: `${testUserId}@gohard.ai`, name: 'Adaptive Tester' },
+      create: { id: testUserId, email: `${testUserId}@gohard.ai`, name: 'Adaptive Tester', passwordHash: '$2a$10$defaultMockPasswordHashForLegacySystemUser' },
       update: {},
     });
 

@@ -11,13 +11,7 @@ export class CourseService {
   private async ensureUserExists(userId: string) {
     const existing = await prisma.user.findUnique({ where: { id: userId } });
     if (!existing) {
-      await prisma.user.create({
-        data: {
-          id: userId,
-          email: `${userId}@gohard.local`,
-          name: 'Gohard Learner',
-        },
-      });
+      throw new Error(`User with ID ${userId} does not exist in database.`);
     }
   }
 

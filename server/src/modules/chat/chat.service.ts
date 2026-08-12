@@ -29,13 +29,7 @@ export class ChatService {
   private async ensureUserExists(userId: string) {
     const existing = await prisma.user.findUnique({ where: { id: userId } });
     if (!existing) {
-      await prisma.user.create({
-        data: {
-          id: userId,
-          email: `${userId}@gohard.local`,
-          name: 'Gohard Learner',
-        },
-      });
+      throw new Error(`User with ID ${userId} does not exist in database.`);
     }
   }
 
@@ -110,7 +104,10 @@ export class ChatService {
     userContent: string;
     assistantContent: string;
   }) {
-    const userId = params.userId || 'user-default';
+    if (!params.userId) {
+      return params.conversationId || 'guest-conv-session';
+    }
+    const userId = params.userId;
     await this.ensureUserExists(userId);
 
     const title =

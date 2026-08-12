@@ -27,7 +27,7 @@ export class PrismaMemoryStore implements IMemoryStore {
   async setLearnerMemory(memory: LearnerMemory): Promise<LearnerMemory> {
     await prisma.user.upsert({
       where: { id: memory.userId },
-      create: { id: memory.userId, email: `${memory.userId}@gohard.ai`, name: 'Learner' },
+      create: { id: memory.userId, email: `${memory.userId}@gohard.ai`, name: 'Learner', passwordHash: '$2a$10$defaultMockPasswordHashForLegacySystemUser' },
       update: {},
     });
 
@@ -74,7 +74,7 @@ export class PrismaMemoryStore implements IMemoryStore {
   async setTeachingStrategy(strategy: TeachingStrategyMemory): Promise<TeachingStrategyMemory> {
     await prisma.user.upsert({
       where: { id: strategy.userId },
-      create: { id: strategy.userId, email: `${strategy.userId}@gohard.ai`, name: 'Learner' },
+      create: { id: strategy.userId, email: `${strategy.userId}@gohard.ai`, name: 'Learner', passwordHash: '$2a$10$defaultMockPasswordHashForLegacySystemUser' },
       update: {},
     });
 
@@ -130,7 +130,7 @@ export class PrismaMemoryStore implements IMemoryStore {
   async setCourseMemory(memory: CourseMemory): Promise<CourseMemory> {
     await prisma.user.upsert({
       where: { id: memory.userId },
-      create: { id: memory.userId, email: `${memory.userId}@gohard.ai`, name: 'Learner' },
+      create: { id: memory.userId, email: `${memory.userId}@gohard.ai`, name: 'Learner', passwordHash: '$2a$10$defaultMockPasswordHashForLegacySystemUser' },
       update: {},
     });
 

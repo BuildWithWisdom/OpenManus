@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Bot,
   Brain,
@@ -20,11 +20,15 @@ import {
   ChevronDown,
   ArrowLeft,
   BookOpen,
+  User,
+  UserCheck,
+  LogOut,
 } from 'lucide-react';
 import OpenManusLogo from '../assets/OpenManusLogo';
 import { Conversation } from '../types';
 import { getModelDisplayName } from '../models';
 import { UserCourseSummary } from '../services/courseService';
+import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -40,6 +44,7 @@ interface SidebarProps {
   activeLessonId?: string;
   activeTab?: 'chats' | 'learning' | 'docs' | 'tools' | 'plugins';
   onTabChange?: (tab: 'chats' | 'learning' | 'docs' | 'tools' | 'plugins') => void;
+  onOpenAuthModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -56,9 +61,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeLessonId = '',
   activeTab = 'chats',
   onTabChange,
+  onOpenAuthModal,
 }) => {
+  const { user, isAuthenticated, logout } = useAuth();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [expandedModuleIds, setExpandedModuleIds] = useState<Record<string, boolean>>({});
+  const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     if (activeLessonId && userCourses?.length > 0) {
@@ -182,7 +205,124 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        <div className="rail-bottom">
+        <div className="rail-bottom" style={{ position: 'relative' }}>
+          {isAuthenticated && (
+            <>
+              <button
+                className="rail-icon-btn active"
+                title={`User Account (${user?.name || 'Logged In'})`}
+                aria-label="Account"
+                onClick={() => setShowProfileMenu((prev) => !prev)}
+                style={{ position: 'relative' }}
+              >
+                <UserCheck size={20} color="#22c55e" />
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '6px',
+                    right: '6px',
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: '#22c55e',
+                    boxShadow: '0 0 6px #22c55e',
+                  }}
+                />
+              </button>
+
+              {showProfileMenu && (
+                <div
+                  ref={profileMenuRef}
+                  style={{
+                    position: 'absolute',
+                    bottom: '10px',
+                    left: '60px',
+                    width: '260px',
+                    background: '#0f172a',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '16px',
+                    padding: '16px',
+                    boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.8)',
+                    zIndex: 9999,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: '16px',
+                        color: '#ffffff',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {user?.name?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          fontSize: '14px',
+                          color: '#f8fafc',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {user?.name || 'Learner'}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: '#94a3b8',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {user?.email || ''}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.08)', margin: '10px 0' }} />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      logout();
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      color: '#f87171',
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <LogOut size={16} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
           <button
             className="rail-icon-btn"
             title="Help & Settings"
@@ -200,7 +340,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {activeTab === 'chats' && (
           <>
             <div className="sidebar-header">
-              <span className="brand-name">Gohard</span>
+              <div className="brand-group">
+                <span className="brand-name">Gohard</span>
+              </div>
               <button
                 className="sidebar-toggle-btn"
                 title="Collapse Sidebar"
@@ -385,7 +527,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </>
         )}
 
-        {/* Footer */}
       </aside>
 
       {toastMessage && (

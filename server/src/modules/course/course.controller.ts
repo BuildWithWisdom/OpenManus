@@ -14,23 +14,21 @@ export const createCourseSchema = z.object({
 });
 
 export class CourseController {
+  private getUserId(c: Context): string {
+    const authUser = c.get('user') as any;
+    if (authUser && authUser.id) {
+      return authUser.id;
+    }
+    throw new Error('Unauthorized: Missing authenticated user token');
+  }
+
   async handleGenerateCourse(c: Context<{ Bindings: Bindings }>) {
     try {
       const body = await c.req.json().catch(() => ({}));
-      console.log('\n========================================');
-      console.log('[Backend CourseController] Incoming POST /api/courses/generate');
-      console.log('[Backend CourseController] Request Body:', JSON.stringify(body, null, 2));
-      console.log('========================================\n');
-
-      const validated = c.req.valid('json' as never) || body;
-      const course = await courseService.generateAndSaveCourse(validated as any);
-
-      console.log('\n[Backend CourseController] Successfully generated & saved course:', {
-        id: course.id,
-        title: course.title,
-        modulesCount: course.modules?.length,
-      });
-
+      const userId = this.getUserId(c);
+      const validated = (c.req as any).valid?.('json') || body;
+      const payload = { ...validated, userId: validated.userId || userId };
+      const course = await courseService.generateAndSaveCourse(payload as any);
       return c.json({ success: true, course }, 201);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to generate course';
@@ -41,7 +39,7 @@ export class CourseController {
 
   async handleGetUserCourses(c: Context<{ Bindings: Bindings }>) {
     try {
-      const userId = c.req.query('userId') || 'user-default';
+      const userId = this.getUserId(c);
       const courses = await courseService.getUserCourses(userId);
       return c.json({ courses });
     } catch (err: unknown) {
@@ -53,7 +51,10 @@ export class CourseController {
   async handleGetCourseDetails(c: Context<{ Bindings: Bindings }>) {
     try {
       const courseId = c.req.param('id');
-      const userId = c.req.query('userId') || 'user-default';
+      if (!courseId) {
+        return c.json({ error: 'Missing course ID' }, 400);
+      }
+      const userId = this.getUserId(c);
       const course = await courseService.getCourseDetails(courseId, userId);
       return c.json({ course });
     } catch (err: unknown) {
@@ -65,12 +66,12 @@ export class CourseController {
   async handleGetLessonContent(c: Context<{ Bindings: Bindings }>) {
     try {
       const lessonId = c.req.param('lessonId');
+      if (!lessonId) {
+        return c.json({ error: 'Missing lesson ID' }, 400);
+      }
       const modelName = c.req.query('modelName');
       const providerSlug = c.req.query('providerSlug');
       const generate = c.req.query('generate') === 'true';
-      console.log('\n========================================');
-      console.log('[Backend CourseController] GET /api/courses/lessons/' + lessonId, { modelName, providerSlug, generate });
-      console.log('========================================\n');
       const lesson = await courseService.getOrGenerateLessonContent(lessonId, modelName, providerSlug, generate);
       return c.json({ lesson });
     } catch (err: unknown) {
@@ -83,7 +84,10 @@ export class CourseController {
   async handleDeleteCourse(c: Context<{ Bindings: Bindings }>) {
     try {
       const courseId = c.req.param('id');
-      const userId = c.req.query('userId') || 'user-default';
+      if (!courseId) {
+        return c.json({ error: 'Missing course ID' }, 400);
+      }
+      const userId = this.getUserId(c);
       const result = await courseService.deleteCourse(courseId, userId);
       return c.json(result);
     } catch (err: unknown) {

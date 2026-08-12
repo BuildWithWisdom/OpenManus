@@ -97,7 +97,7 @@ export class AnalystEngine {
         return;
       }
 
-      const jsonPayload = await response.json();
+      const jsonPayload = (await response.json()) as any;
       const rawText = jsonPayload.choices?.[0]?.message?.content;
       if (!rawText) return;
 

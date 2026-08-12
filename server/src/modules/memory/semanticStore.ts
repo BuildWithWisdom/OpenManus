@@ -46,7 +46,7 @@ export class SemanticStore {
     if (process.env.DATABASE_URL) {
       await prisma.user.upsert({
         where: { id: params.userId },
-        create: { id: params.userId, email: `${params.userId}@gohard.ai`, name: 'Learner' },
+        create: { id: params.userId, email: `${params.userId}@gohard.ai`, name: 'Learner', passwordHash: '$2a$10$defaultMockPasswordHashForLegacySystemUser' },
         update: {},
       });
 

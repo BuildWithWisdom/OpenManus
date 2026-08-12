@@ -112,7 +112,7 @@ export class CourseGenerator {
       throw new Error(`AI Gateway Error [${response.status}]: ${errText}`);
     }
 
-    const payload = await response.json();
+    const payload = (await response.json()) as any;
     let rawContent = payload.choices?.[0]?.message?.content;
     if (!rawContent) {
       throw new Error('Empty response received from AI model');
@@ -190,7 +190,7 @@ export class CourseGenerator {
       throw new Error(`AI Gateway Error [${response.status}]: ${errText}`);
     }
 
-    const payload = await response.json();
+    const payload = (await response.json()) as any;
     const content = payload.choices?.[0]?.message?.content;
     if (!content) {
       throw new Error('Empty response received for lesson generation');
