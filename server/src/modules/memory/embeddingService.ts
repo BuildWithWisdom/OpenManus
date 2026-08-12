@@ -20,7 +20,7 @@ export class EmbeddingService {
         });
 
         if (response.ok) {
-          const payload = await response.json();
+          const payload = (await response.json()) as any;
           const vector = payload.result?.data?.[0] || payload.data?.[0]?.embedding;
           if (Array.isArray(vector) && vector.length > 0) {
             return vector;

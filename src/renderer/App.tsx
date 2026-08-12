@@ -8,13 +8,16 @@ import { ChatInput } from './components/ChatInput';
 import { CourseCreationModal } from './components/CourseCreationModal';
 import { LessonWorkspace } from './components/LessonWorkspace';
 import { AnimationPreviewPage } from './components/preview/AnimationPreviewPage';
+import { AuthScreen } from './components/AuthScreen';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ChatMessage, Conversation, ThemeMode } from './types';
 import { getModelById } from './models';
 import { streamLLMMessage, fetchUserConversations } from './services/llmService';
 import { fetchUserCourses, UserCourseSummary } from './services/courseService';
 import './theme.css';
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [selectedModel, setSelectedModel] = useState<string>('nvidia/nemotron-3-nano-30b-a3b');
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
@@ -24,9 +27,15 @@ export const App: React.FC = () => {
   const [showLeftSidebar, setShowLeftSidebar] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth >= 768);
   const [activeTurnIndex, setActiveTurnIndex] = useState<number>(0);
 
+  const [showAuthGate, setShowAuthGate] = useState<boolean>(false);
+  const [guestMsgCount, setGuestMsgCount] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    return parseInt(localStorage.getItem('openmanus_guest_msg_count') || '0', 10);
+  });
   const [activeTab, setActiveTab] = useState<'chats' | 'learning' | 'docs' | 'tools' | 'plugins'>('chats');
   const [userCourses, setUserCourses] = useState<UserCourseSummary[]>([]);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [showAnimationPreview, setShowAnimationPreview] = useState<boolean>(false);
   const [activeCourseId, setActiveCourseId] = useState<string>('');
   const [activeLessonId, setActiveLessonId] = useState<string>('');
@@ -58,29 +67,35 @@ export const App: React.FC = () => {
   }, []);
 
   const loadCourses = useCallback(async () => {
+    if (!isAuthenticated || !user?.id) return;
     try {
-      const courses = await fetchUserCourses('user-default');
+      const courses = await fetchUserCourses(user.id);
       setUserCourses(courses);
     } catch (err) {
       console.warn('[App] Failed to load user courses:', err);
     }
-  }, []);
+  }, [user?.id, isAuthenticated]);
 
   const loadConversations = useCallback(async () => {
+    if (!isAuthenticated || !user?.id) return;
     try {
-      const convs = await fetchUserConversations('user-default');
+      const convs = await fetchUserConversations(user.id);
       if (convs && convs.length > 0) {
         setConversations(convs);
+      } else {
+        setConversations([]);
       }
     } catch (err) {
       console.warn('[App] Failed to load saved conversations:', err);
     }
-  }, []);
+  }, [user?.id, isAuthenticated]);
 
   useEffect(() => {
-    loadCourses();
-    loadConversations();
-  }, [loadCourses, loadConversations]);
+    if (isAuthenticated && user?.id) {
+      loadCourses();
+      loadConversations();
+    }
+  }, [isAuthenticated, user?.id, loadCourses, loadConversations]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -234,6 +249,16 @@ export const App: React.FC = () => {
 
   const handleSendMessage = useCallback(
     async (text: string): Promise<void> => {
+      if (!isAuthenticated && guestMsgCount >= 1) {
+        navigate('/login');
+        return;
+      }
+
+      if (!isAuthenticated && guestMsgCount === 0) {
+        setGuestMsgCount(1);
+        localStorage.setItem('openmanus_guest_msg_count', '1');
+      }
+
       const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
       const userMsg: ChatMessage = {
@@ -398,7 +423,7 @@ export const App: React.FC = () => {
         delete activeRequestIdRef.current[currentConvId];
       }
     },
-    [activeId, conversations, selectedModel, navigate]
+    [activeId, conversations, selectedModel, navigate, isAuthenticated, guestMsgCount]
   );
 
   const handleNewChat = useCallback((): void => {
@@ -512,6 +537,14 @@ export const App: React.FC = () => {
     return activeLessonMeta?.title || '';
   }, [activeLessonMeta]);
 
+  if (isAuthLoading) {
+    return null;
+  }
+
+  if (location.pathname === '/login' || (!isAuthenticated && showAuthGate)) {
+    return <AuthScreen onClose={() => navigate('/')} />;
+  }
+
   return (
     <div className="app-layout" data-theme={theme}>
       {isAnyDrawerOpenOnMobile && (
@@ -525,17 +558,30 @@ export const App: React.FC = () => {
       <Sidebar
         conversations={conversations}
         activeId={activeId}
-        onSelectConversation={handleSelectConversation}
+        onSelectConversation={(id) => {
+          if (!isAuthenticated) {
+            navigate('/login');
+            return;
+          }
+          handleSelectConversation(id);
+        }}
         onNewChat={handleNewChat}
         selectedModel={selectedModel}
         isLeftSidebarVisible={showLeftSidebar}
         onToggleSidebar={handleToggleLeftSidebar}
         userCourses={userCourses}
-        onOpenCourseModal={() => setIsCourseModalOpen(true)}
+        onOpenCourseModal={() => {
+          if (!isAuthenticated) {
+            navigate('/login');
+            return;
+          }
+          setIsCourseModalOpen(true);
+        }}
         onSelectLesson={handleSelectLesson}
         activeLessonId={activeLessonId}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        onOpenAuthModal={() => navigate('/login')}
       />
 
       <div className="main-content">
@@ -556,6 +602,7 @@ export const App: React.FC = () => {
               onToggleTheme={toggleTheme}
               isLeftSidebarVisible={showLeftSidebar}
               onToggleLeftSidebar={handleToggleLeftSidebar}
+              onOpenAuthModal={() => navigate('/login')}
             />
 
             <div className="chat-card-body" ref={chatBodyRef}>
@@ -624,6 +671,14 @@ export const App: React.FC = () => {
         />
       )}
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 

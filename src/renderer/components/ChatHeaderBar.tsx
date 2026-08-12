@@ -13,6 +13,7 @@ import {
   Settings,
   PanelLeft,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { ThemeMode } from '../types';
 
 export interface TurnItem {
@@ -32,6 +33,7 @@ interface ChatHeaderBarProps {
   onToggleTheme?: () => void;
   isLeftSidebarVisible?: boolean;
   onToggleLeftSidebar?: () => void;
+  onOpenAuthModal?: () => void;
 }
 
 export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
@@ -45,7 +47,9 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
   onToggleTheme,
   isLeftSidebarVisible = true,
   onToggleLeftSidebar,
+  onOpenAuthModal,
 }) => {
+  const { isAuthenticated } = useAuth();
   const [showTurnsDropdown, setShowTurnsDropdown] = useState<boolean>(false);
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
 
@@ -133,67 +137,111 @@ export const ChatHeaderBar: React.FC<ChatHeaderBarProps> = ({
       </div>
 
       <div className="chat-header-actions">
-        <button
-          className="chat-action-btn"
-          title="Toggle Contents"
-          disabled={isDisabled}
-          onClick={onToggleContents}
-          aria-label="Toggle Contents"
-        >
-          <SlidersHorizontal size={22} />
-        </button>
+        {isAuthenticated && (
+          <>
+            <button
+              className="chat-action-btn"
+              title="Toggle Contents"
+              disabled={isDisabled}
+              onClick={onToggleContents}
+              aria-label="Toggle Contents"
+            >
+              <SlidersHorizontal size={22} />
+            </button>
 
-        <div className="chat-more-dropdown-container" ref={moreMenuRef}>
-          <button
-            className="chat-action-btn"
-            title="More Options"
-            aria-label="More Options"
-            onClick={() => {
-              setShowMoreMenu((prev) => !prev);
-              setShowTurnsDropdown(false);
-            }}
-          >
-            <MoreHorizontal size={22} />
-          </button>
+            <div className="chat-more-dropdown-container" ref={moreMenuRef}>
+              <button
+                className="chat-action-btn"
+                title="More Options"
+                aria-label="More Options"
+                onClick={() => {
+                  setShowMoreMenu((prev) => !prev);
+                  setShowTurnsDropdown(false);
+                }}
+              >
+                <MoreHorizontal size={22} />
+              </button>
 
-          {showMoreMenu && (
-            <div className="chat-more-menu">
-              <button type="button" className="chat-more-item" disabled={isDisabled}>
-                <Copy size={19} />
-                <span>Copy conversation</span>
-              </button>
-              <button type="button" className="chat-more-item" disabled={isDisabled}>
-                <Download size={19} />
-                <span>Export chat</span>
-              </button>
-              <button type="button" className="chat-more-item" disabled={isDisabled}>
-                <Edit2 size={19} />
-                <span>Rename chat</span>
-              </button>
-              <button type="button" className="chat-more-item mobile-only-item">
-                <BookOpen size={19} />
-                <span>Documentation</span>
-              </button>
-              <button type="button" className="chat-more-item mobile-only-item">
-                <Settings size={19} />
-                <span>Settings</span>
-              </button>
-              <div className="chat-more-divider" />
-              <button type="button" className="chat-more-item danger" disabled={isDisabled}>
-                <Trash2 size={19} />
-                <span>Delete chat</span>
-              </button>
+              {showMoreMenu && (
+                <div className="chat-more-menu">
+                  <button type="button" className="chat-more-item" disabled={isDisabled}>
+                    <Copy size={19} />
+                    <span>Copy conversation</span>
+                  </button>
+                  <button type="button" className="chat-more-item" disabled={isDisabled}>
+                    <Download size={19} />
+                    <span>Export chat</span>
+                  </button>
+                  <button type="button" className="chat-more-item" disabled={isDisabled}>
+                    <Edit2 size={19} />
+                    <span>Rename chat</span>
+                  </button>
+                  <button type="button" className="chat-more-item mobile-only-item">
+                    <BookOpen size={19} />
+                    <span>Documentation</span>
+                  </button>
+                  <button type="button" className="chat-more-item mobile-only-item">
+                    <Settings size={19} />
+                    <span>Settings</span>
+                  </button>
+                  <div className="chat-more-divider" />
+                  <button type="button" className="chat-more-item danger" disabled={isDisabled}>
+                    <Trash2 size={19} />
+                    <span>Delete chat</span>
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <button className="chat-action-btn desktop-only-action" title="Documentation" aria-label="Documentation">
-          <BookOpen size={21} />
-        </button>
+            <button className="chat-action-btn desktop-only-action" title="Documentation" aria-label="Documentation">
+              <BookOpen size={21} />
+            </button>
 
-        <button className="chat-action-btn desktop-only-action" title="Settings" aria-label="Settings">
-          <Settings size={21} />
-        </button>
+            <button className="chat-action-btn desktop-only-action" title="Settings" aria-label="Settings">
+              <Settings size={21} />
+            </button>
+          </>
+        )}
+
+        {!isAuthenticated && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '6px' }}>
+            <button
+              type="button"
+              onClick={onOpenAuthModal}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '20px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '13px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              onClick={onOpenAuthModal}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '20px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '13px',
+                cursor: 'pointer',
+                boxShadow: '0 2px 10px rgba(34, 197, 94, 0.3)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Sign up for free
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

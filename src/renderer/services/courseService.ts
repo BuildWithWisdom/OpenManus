@@ -1,4 +1,6 @@
-const HONO_API_URL = import.meta.env.VITE_HONO_API_URL || 'http://localhost:8787';
+import { getAuthHeaders } from './authService';
+
+const HONO_API_URL = import.meta.env.VITE_HONO_API_URL || 'http://localhost:3000';
 
 export interface LessonSummary {
   id: string;
@@ -41,7 +43,9 @@ export interface DetailedLessonContent {
 }
 
 export async function fetchUserCourses(userId: string = 'user-default'): Promise<UserCourseSummary[]> {
-  const response = await fetch(`${HONO_API_URL}/api/courses?userId=${encodeURIComponent(userId)}`);
+  const response = await fetch(`${HONO_API_URL}/api/courses?userId=${encodeURIComponent(userId)}`, {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch courses [${response.status}]`);
   }
@@ -50,7 +54,9 @@ export async function fetchUserCourses(userId: string = 'user-default'): Promise
 }
 
 export async function fetchCourseDetails(courseId: string, userId: string = 'user-default') {
-  const response = await fetch(`${HONO_API_URL}/api/courses/${courseId}?userId=${encodeURIComponent(userId)}`);
+  const response = await fetch(`${HONO_API_URL}/api/courses/${courseId}?userId=${encodeURIComponent(userId)}`, {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch course details [${response.status}]`);
   }
@@ -72,7 +78,7 @@ export async function generateCourse(params: {
 
   const response = await fetch(targetUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(params),
   });
 
@@ -104,7 +110,9 @@ export async function fetchLessonContent(
   const url = `${HONO_API_URL}/api/courses/lessons/${lessonId}${queryString}`;
   console.log('[courseService] Requesting lesson content:', url);
 
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
   console.log('[courseService] Response status:', response.status, response.statusText);
 
   if (!response.ok) {
@@ -120,6 +128,7 @@ export async function fetchLessonContent(
 export async function deleteCourse(courseId: string, userId: string = 'user-default') {
   const response = await fetch(`${HONO_API_URL}/api/courses/${courseId}?userId=${encodeURIComponent(userId)}`, {
     method: 'DELETE',
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     throw new Error(`Failed to delete course [${response.status}]`);

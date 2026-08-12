@@ -12,7 +12,7 @@ async function testMemoryEngine() {
     console.log('Connecting to NeonDB database...');
     await prisma.user.upsert({
       where: { id: testUserId },
-      create: { id: testUserId, email: `${testUserId}@gohard.ai`, name: 'Wisdom' },
+      create: { id: testUserId, email: `${testUserId}@gohard.ai`, name: 'Wisdom', passwordHash: '$2a$10$defaultMockPasswordHashForLegacySystemUser' },
       update: {},
     });
 

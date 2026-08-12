@@ -1,10 +1,12 @@
+import { getAuthHeaders } from './authService';
+
 export interface StreamCallbacks {
   onChunk: (chunk: string) => void;
   onComplete: () => void;
   onError: (error: string) => void;
 }
 
-const HONO_API_URL = import.meta.env.VITE_HONO_API_URL || 'http://localhost:8787';
+const HONO_API_URL = import.meta.env.VITE_HONO_API_URL || 'http://localhost:3000';
 
 export async function streamLLMMessage(
   requestId: string,
@@ -23,9 +25,7 @@ export async function streamLLMMessage(
   try {
     const response = await fetch(`${HONO_API_URL}/api/chat/stream`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         messages,
         modelName,
@@ -148,7 +148,9 @@ export async function streamLLMMessage(
 }
 
 export async function fetchUserConversations(userId: string = 'user-default') {
-  const response = await fetch(`${HONO_API_URL}/api/chat/conversations?userId=${encodeURIComponent(userId)}`);
+  const response = await fetch(`${HONO_API_URL}/api/chat/conversations?userId=${encodeURIComponent(userId)}`, {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch conversations [${response.status}]`);
   }
@@ -157,7 +159,9 @@ export async function fetchUserConversations(userId: string = 'user-default') {
 }
 
 export async function fetchConversationDetails(conversationId: string, userId: string = 'user-default') {
-  const response = await fetch(`${HONO_API_URL}/api/chat/conversations/${encodeURIComponent(conversationId)}?userId=${encodeURIComponent(userId)}`);
+  const response = await fetch(`${HONO_API_URL}/api/chat/conversations/${encodeURIComponent(conversationId)}?userId=${encodeURIComponent(userId)}`, {
+    headers: getAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch conversation details [${response.status}]`);
   }
@@ -168,6 +172,7 @@ export async function fetchConversationDetails(conversationId: string, userId: s
 export async function deleteConversationApi(conversationId: string, userId: string = 'user-default') {
   const response = await fetch(`${HONO_API_URL}/api/chat/conversations/${encodeURIComponent(conversationId)}?userId=${encodeURIComponent(userId)}`, {
     method: 'DELETE',
+    headers: getAuthHeaders(),
   });
   if (!response.ok) {
     throw new Error(`Failed to delete conversation [${response.status}]`);
